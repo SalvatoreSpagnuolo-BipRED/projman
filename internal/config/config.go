@@ -12,6 +12,7 @@ const ConfigDirName = "projman"
 const ConfigFileName = "projman_config.json"
 
 type Config struct {
+	RootOfProjects   string   `json:"root_of_projects"`
 	SelectedProjects []string `json:"selected_projects"`
 }
 

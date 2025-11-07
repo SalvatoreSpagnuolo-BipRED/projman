@@ -4,8 +4,9 @@ Copyright © 2025 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
-	"projman/internal/config"
-	"projman/internal/project"
+	"github.com/SalvatoreSpagnuolo-BipRED/projman/internal/project"
+
+	"github.com/SalvatoreSpagnuolo-BipRED/projman/internal/config"
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/pterm/pterm"
@@ -54,7 +55,11 @@ var initCmd = &cobra.Command{
 		}
 
 		// Salva lo config in json
-		return config.SaveSettings(config.Config{SelectedProjects: selected})
+		cfg := config.Config{
+			SelectedProjects: selected,
+			RootOfProjects:   root,
+		}
+		return config.SaveSettings(cfg)
 
 	},
 }

@@ -1,4 +1,4 @@
-module projman
+module github.com/SalvatoreSpagnuolo-BipRED/projman
 
 go 1.25.4
 

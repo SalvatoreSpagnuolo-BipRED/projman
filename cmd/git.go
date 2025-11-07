@@ -4,18 +4,17 @@ Copyright © 2025 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
-	"fmt"
-
+	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 )
 
 // gitCmd represents the git command
 var gitCmd = &cobra.Command{
 	Use:   "git",
-	Short: "A brief description of your command",
+	Short: "Esegue git pull su tutti i progetti selezionati",
 
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("git called")
+		pterm.DefaultHeader.Println("Git Command")
 	},
 }
 
