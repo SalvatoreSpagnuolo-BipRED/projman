@@ -1,6 +1,3 @@
-/*
-Copyright © 2025 NAME HERE <EMAIL ADDRESS>
-*/
 package cmd
 
 import (
@@ -8,15 +5,16 @@ import (
 
 	"github.com/SalvatoreSpagnuolo-BipRED/projman/internal/config"
 	"github.com/SalvatoreSpagnuolo-BipRED/projman/internal/executil"
-
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 )
 
-// updateCmd represents the update command
 var updateCmd = &cobra.Command{
 	Use:   "update",
-	Short: "A brief description of your command",
+	Short: "Aggiorna tutti i progetti selezionati con git pull",
+	Long: `Esegue git pull su tutti i progetti precedentemente selezionati.
+Questo comando mantiene aggiornati tutti i progetti scaricando le ultime modifiche
+dai rispettivi repository remoti.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		pterm.DefaultHeader.Println("Git Update")
 

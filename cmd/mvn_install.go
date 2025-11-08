@@ -1,25 +1,21 @@
-/*
-Copyright © 2025 NAME HERE <EMAIL ADDRESS>
-*/
 package cmd
 
 import (
 	"path/filepath"
 
-	"github.com/SalvatoreSpagnuolo-BipRED/projman/internal/executil"
-
 	"github.com/SalvatoreSpagnuolo-BipRED/projman/internal/config"
-
+	"github.com/SalvatoreSpagnuolo-BipRED/projman/internal/executil"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 )
 
 var runTests bool
-
-// installCmd represents the install command
 var installCmd = &cobra.Command{
 	Use:   "install",
-	Short: "Esegue mvn install su tutti i progetti selezionati",
+	Short: "Esegue mvn install sui progetti selezionati",
+	Long: `Esegue il comando 'mvn install' su tutti i progetti Maven selezionati.
+Per default i test sono disabilitati. Usa il flag --tests o -t per abilitarli.
+Il comando cerca il file pom.xml in ogni progetto selezionato ed esegue l'installazione.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		pterm.DefaultHeader.Println("Maven Install")
 

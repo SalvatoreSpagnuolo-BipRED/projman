@@ -1,22 +1,19 @@
-/*
-Copyright © 2025 NAME HERE <EMAIL ADDRESS>
-*/
 package cmd
 
 import (
-	"github.com/SalvatoreSpagnuolo-BipRED/projman/internal/project"
-
-	"github.com/SalvatoreSpagnuolo-BipRED/projman/internal/config"
-
 	"github.com/AlecAivazis/survey/v2"
+	"github.com/SalvatoreSpagnuolo-BipRED/projman/internal/config"
+	"github.com/SalvatoreSpagnuolo-BipRED/projman/internal/project"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 )
 
-// initCmd represents the init command
 var initCmd = &cobra.Command{
 	Use:   "init",
 	Short: "Seleziona i progetti da includere nella gestione",
+	Long: `Inizializza la configurazione di projman selezionando i progetti da gestire.
+Richiede il percorso della directory root contenente i progetti Maven.
+Permette di selezionare interattivamente quali progetti includere nella gestione.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 
 		// Controlla che sia stata passata la directory root
