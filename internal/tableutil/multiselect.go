@@ -15,11 +15,6 @@ type MultiSelectTable struct {
 	DefaultIndices []int
 }
 
-const (
-	underlineStart = "\x1b[4m"
-	underlineEnd   = "\x1b[0m"
-)
-
 // Show mostra la tabella multiselect e restituisce gli indici delle righe selezionate
 func (t *MultiSelectTable) Show() ([]int, error) {
 	if len(t.Rows) == 0 {
@@ -49,7 +44,7 @@ func (t *MultiSelectTable) Show() ([]int, error) {
 	for i, header := range t.Headers {
 		headerParts[i] = fmt.Sprintf("%-*s", colWidths[i], header)
 	}
-	headerLine := underlineStart + "     " + strings.Join(headerParts, "  │  ") + underlineEnd
+	headerLine := "     " + strings.Join(headerParts, "  │  ")
 
 	// Formatta le righe come opzioni per la multiselect
 	options := make([]string, len(t.Rows))
@@ -64,7 +59,7 @@ func (t *MultiSelectTable) Show() ([]int, error) {
 	}
 
 	// Messaggio di default
-	message := fmt.Sprintf("%s: %s", headerLine, t.Message)
+	message := fmt.Sprintf("%s\n%s\n%s", t.Message, headerLine, strings.Repeat("─", len(headerLine)))
 	if message == "" {
 		message = "Usa ↑↓ per navigare, Spazio per selezionare, Invio per confermare:"
 	}
@@ -75,6 +70,7 @@ func (t *MultiSelectTable) Show() ([]int, error) {
 		Message: message,
 		Options: options,
 		Default: t.DefaultIndices,
+		Help:    "",
 	}
 
 	err := survey.AskOne(prompt, &selectedIndices)

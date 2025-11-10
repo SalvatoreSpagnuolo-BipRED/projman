@@ -59,7 +59,7 @@ dai rispettivi repository remoti.`,
 		multiSelectTable := tableutil.MultiSelectTable{
 			Headers: []string{"Progetto", "Ramo Attuale"},
 			Rows: func() [][]string {
-				rows := [][]string{}
+				rows := make([][]string, 0, len(projectInfos))
 				for _, pInfo := range projectInfos {
 					rows = append(rows, []string{pInfo.Name, pInfo.CurrentBranch})
 				}
