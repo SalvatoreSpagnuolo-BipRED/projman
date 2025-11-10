@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/AlecAivazis/survey/v2"
+	"github.com/pterm/pterm"
 )
 
 // MultiSelectTable rappresenta una tabella interattiva con multiselect
@@ -59,10 +60,12 @@ func (t *MultiSelectTable) Show() ([]int, error) {
 	}
 
 	// Messaggio di default
+	help := "💡 Navigazione: ↑↓ per muoversi | Spazio per selezionare | Invio per confermare"
+	pterm.Info.WithPrefix(pterm.Prefix{
+		Text:  "Guida",
+		Style: pterm.NewStyle(pterm.FgBlue),
+	}).Println(help)
 	message := fmt.Sprintf("%s\n%s\n%s", t.Message, headerLine, strings.Repeat("─", len(headerLine)))
-	if message == "" {
-		message = "Usa ↑↓ per navigare, Spazio per selezionare, Invio per confermare:"
-	}
 
 	// Multiselect interattiva
 	var selectedIndices []int
@@ -70,7 +73,7 @@ func (t *MultiSelectTable) Show() ([]int, error) {
 		Message: message,
 		Options: options,
 		Default: t.DefaultIndices,
-		Help:    "",
+		Help:    " ",
 	}
 
 	err := survey.AskOne(prompt, &selectedIndices)
