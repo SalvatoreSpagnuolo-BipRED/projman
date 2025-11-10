@@ -28,7 +28,6 @@ var updateCmd = &cobra.Command{
 Questo comando mantiene aggiornati tutti i progetti scaricando le ultime modifiche
 dai rispettivi repository remoti.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		pterm.DefaultHeader.Println("Git Update")
 
 		// Carica la configurazione
 		cfg, err := config.LoadSettings()
@@ -58,14 +57,11 @@ dai rispettivi repository remoti.`,
 
 		// Mostra la conferma interattiva
 		multiSelectTable := tableutil.MultiSelectTable{
-			Title:   "Vuoi passare al ramo 'develop' i seguenti progetti prima di eseguire l'update?",
 			Headers: []string{"Progetto", "Ramo Attuale"},
 			Rows: func() [][]string {
 				rows := [][]string{}
 				for _, pInfo := range projectInfos {
-					if pInfo.switchToDevelop {
-						rows = append(rows, []string{pInfo.Name, pInfo.CurrentBranch})
-					}
+					rows = append(rows, []string{pInfo.Name, pInfo.CurrentBranch})
 				}
 				return rows
 			}(),

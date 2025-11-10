@@ -10,7 +10,6 @@ import (
 
 // MultiSelectTable rappresenta una tabella interattiva con multiselect
 type MultiSelectTable struct {
-	Title          string
 	Headers        []string
 	Rows           [][]string
 	Message        string
@@ -46,18 +45,7 @@ func (t *MultiSelectTable) Show() ([]int, error) {
 	for i, header := range t.Headers {
 		headerParts[i] = fmt.Sprintf("%-*s", colWidths[i], header)
 	}
-	headerLine := strings.Join(headerParts, "  │  ")
-	separatorLine := strings.Repeat("─", len(headerLine))
-
-	// Mostra title e header
-	pterm.Println()
-	if t.Title != "" {
-		pterm.DefaultHeader.Println(t.Title)
-		pterm.Println()
-	}
-	pterm.Println(headerLine)
-	pterm.Println(separatorLine)
-	pterm.Println()
+	headerLine := pterm.NewStyle(pterm.Underscore).Sprint(strings.Join(headerParts, "  │  "))
 
 	// Formatta le righe come opzioni per la multiselect
 	options := make([]string, len(t.Rows))
@@ -72,7 +60,7 @@ func (t *MultiSelectTable) Show() ([]int, error) {
 	}
 
 	// Messaggio di default
-	message := t.Message
+	message := fmt.Sprintf("%s: %s", headerLine, t.Message)
 	if message == "" {
 		message = "Usa ↑↓ per navigare, Spazio per selezionare, Invio per confermare:"
 	}
