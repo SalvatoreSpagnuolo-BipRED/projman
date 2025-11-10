@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/AlecAivazis/survey/v2"
-	"github.com/pterm/pterm"
 )
 
 // MultiSelectTable rappresenta una tabella interattiva con multiselect
@@ -15,6 +14,11 @@ type MultiSelectTable struct {
 	Message        string
 	DefaultIndices []int
 }
+
+const (
+	underlineStart = "\x1b[4m"
+	underlineEnd   = "\x1b[0m"
+)
 
 // Show mostra la tabella multiselect e restituisce gli indici delle righe selezionate
 func (t *MultiSelectTable) Show() ([]int, error) {
@@ -45,7 +49,7 @@ func (t *MultiSelectTable) Show() ([]int, error) {
 	for i, header := range t.Headers {
 		headerParts[i] = fmt.Sprintf("%-*s", colWidths[i], header)
 	}
-	headerLine := pterm.NewStyle(pterm.Underscore).Sprint(strings.Join(headerParts, "  │  "))
+	headerLine := underlineStart + "     " + strings.Join(headerParts, "  │  ") + underlineEnd
 
 	// Formatta le righe come opzioni per la multiselect
 	options := make([]string, len(t.Rows))
