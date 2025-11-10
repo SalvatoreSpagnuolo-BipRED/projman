@@ -7,6 +7,7 @@ import (
 
 	"github.com/SalvatoreSpagnuolo-BipRED/projman/internal/config"
 	"github.com/SalvatoreSpagnuolo-BipRED/projman/internal/executil"
+	"github.com/SalvatoreSpagnuolo-BipRED/projman/internal/project"
 	"github.com/SalvatoreSpagnuolo-BipRED/projman/internal/tableutil"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
@@ -35,6 +36,24 @@ dai rispettivi repository remoti.`,
 			pterm.Error.Println("Errore nel caricamento della configurazione:", err)
 			return
 		}
+		// Prompt per la selezione dei progetti
+		projUri, _ := project.Discover(cfg.RootOfProjects)
+		names := project.Names(projUri)
+		selectedNames, err := pterm.DefaultInteractiveMultiselect.
+			WithOptions(names).
+			WithDefaultOptions(cfg.SelectedProjects).
+			Show("Seleziona i progetti da includere:")
+		if err != nil {
+			pterm.Error.Println("Errore nella selezione dei progetti:", err)
+			return
+		}
+
+		// Salva lo config in json
+		cfg.SelectedProjects = selectedNames
+		if err := config.SaveSettings(cfg); err != nil {
+			pterm.Error.Println("Errore nel salvataggio della configurazione:", err)
+			return
+		}
 
 		// Chiedi all'utente se vuole passare al ramo develop i progetti non su develop
 		projectInfos := make([]ProjectInfo, 0, len(cfg.SelectedProjects))
@@ -56,37 +75,59 @@ dai rispettivi repository remoti.`,
 		}
 
 		// Mostra la conferma interattiva
-		multiSelectTable := tableutil.MultiSelectTable{
-			Headers: []string{"Progetto", "Ramo Attuale"},
-			Rows: func() [][]string {
-				rows := make([][]string, 0, len(projectInfos))
-				for _, pInfo := range projectInfos {
-					rows = append(rows, []string{pInfo.Name, pInfo.CurrentBranch})
-				}
-				return rows
-			}(),
-			Message: "Seleziona i progetti da passare a 'develop':",
-			DefaultIndices: func() []int {
-				indices := []int{}
-				for i, pInfo := range projectInfos {
-					if pInfo.switchToDevelop {
-						indices = append(indices, i)
+		nonDevelopProjects := make([]ProjectInfo, 0, len(projectInfos))
+		for _, pInfo := range projectInfos {
+			if !pInfo.IsDevelop {
+				nonDevelopProjects = append(nonDevelopProjects, pInfo)
+			}
+		}
+
+		if len(nonDevelopProjects) == 0 {
+			pterm.Info.Println("Tutti i progetti sono già sul ramo 'develop'. Nessun cambiamento di ramo necessario.")
+		} else {
+			pterm.Info.Println("Alcuni progetti non sono attualmente sul ramo 'develop'.")
+			multiSelectTable := tableutil.MultiSelectTable{
+				Headers: []string{"Progetto", "Ramo Attuale"},
+				Rows: func() [][]string {
+					rows := make([][]string, 0, len(nonDevelopProjects))
+					for _, pInfo := range nonDevelopProjects {
+						rows = append(rows, []string{pInfo.Name, pInfo.CurrentBranch})
+					}
+					return rows
+				}(),
+				Message: "Seleziona i progetti da passare a 'develop':",
+				DefaultIndices: func() []int {
+					indices := []int{}
+					for i, pInfo := range nonDevelopProjects {
+						if pInfo.switchToDevelop {
+							indices = append(indices, i)
+						}
+					}
+					return indices
+				}(),
+			}
+			selectedIndices, err := multiSelectTable.Show()
+			if err != nil {
+				pterm.Error.Println("Errore nella selezione interattiva:", err)
+				return
+			}
+
+			// Aggiorna le informazioni sui progetti in base alla selezione dell'utente
+			for i := range projectInfos {
+				if !projectInfos[i].IsDevelop {
+					if slices.Contains(selectedIndices, func() int {
+						for idx, p := range nonDevelopProjects {
+							if p.Name == projectInfos[i].Name {
+								return idx
+							}
+						}
+						return -1
+					}()) {
+						projectInfos[i].switchToDevelop = true
+					} else {
+						projectInfos[i].switchToDevelop = false
 					}
 				}
-				return indices
-			}(),
-		}
-		selectedIndices, err := multiSelectTable.Show()
-		if err != nil {
-			pterm.Error.Println("Errore nella selezione interattiva:", err)
-			return
-		}
-		// Aggiorna le informazioni sui progetti in base alla selezione dell'utente
-		for i := range projectInfos {
-			if slices.Contains(selectedIndices, i) {
-				projectInfos[i].switchToDevelop = true
-			} else {
-				projectInfos[i].switchToDevelop = false
 			}
 		}
 
