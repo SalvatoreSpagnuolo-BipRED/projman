@@ -39,14 +39,21 @@ func (t *MultiSelectTable) Show() ([]int, error) {
 		}
 	}
 
-	// Costruisci l'header della tabella
+	// Costruisci l'header formattato
 	headerParts := make([]string, len(t.Headers))
 	for i, header := range t.Headers {
 		headerParts[i] = fmt.Sprintf("%-*s", colWidths[i], header)
 	}
-	headerLine := "       " + strings.Join(headerParts, "  │  ")
+	headerLine := strings.Repeat(" ", 6) + strings.Join(headerParts, " │ ")
+	separatorLine := strings.Repeat("─", len(headerLine))
 
-	// Formatta le righe come opzioni per la multiselect
+	pterm.Info.Println(t.Message)
+	pterm.Println()
+
+	// Crea il messaggio con l'header della tabella
+	message := fmt.Sprintf("%s\n%s", headerLine, separatorLine)
+
+	// Formatta le righe come opzioni per la multiselect in formato tabellare
 	options := make([]string, len(t.Rows))
 	for i, row := range t.Rows {
 		rowParts := make([]string, len(t.Headers))
@@ -55,12 +62,8 @@ func (t *MultiSelectTable) Show() ([]int, error) {
 				rowParts[j] = fmt.Sprintf("%-*s", colWidths[j], cell)
 			}
 		}
-		options[i] = strings.Join(rowParts, "  │  ")
+		options[i] = strings.Join(rowParts, " │ ")
 	}
-
-	// Messaggio di default
-	pterm.Info.Printfln("💡 Navigazione: ↑↓ per muoversi | Spazio per selezionare | Invio per confermare")
-	headerMsg := fmt.Sprintf("%s\n%s\n%s", t.Message, headerLine, strings.Repeat("─", len(headerLine)))
 
 	// Converti gli indici di default alle opzioni corrispondenti
 	defaultOptions := make([]string, 0)
@@ -70,11 +73,11 @@ func (t *MultiSelectTable) Show() ([]int, error) {
 		}
 	}
 
-	// Multiselect interattiva con pterm
+	// Multiselect interattiva con formato tabellare
 	selectedOptions, err := pterm.DefaultInteractiveMultiselect.
 		WithOptions(options).
 		WithDefaultOptions(defaultOptions).
-		Show(headerMsg)
+		Show(message)
 	if err != nil {
 		return nil, err
 	}
