@@ -1,12 +1,14 @@
 package executil
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
 	"strings"
 )
 
 func Run(name string, args ...string) error {
+	fmt.Printf("$ %s %s\n", name, strings.Join(args, " "))
 	cmd := exec.Command(name, args...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
