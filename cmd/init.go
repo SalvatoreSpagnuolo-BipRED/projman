@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"github.com/AlecAivazis/survey/v2"
 	"github.com/SalvatoreSpagnuolo-BipRED/projman/internal/config"
 	"github.com/SalvatoreSpagnuolo-BipRED/projman/internal/project"
 	"github.com/pterm/pterm"
@@ -39,21 +38,17 @@ Permette di selezionare interattivamente quali progetti includere nella gestione
 
 		// Prompt per la selezione dei progetti
 		names := project.Names(projs)
-		var selected []string
-		prompt := &survey.MultiSelect{
-			Message:  "Seleziona i progetti da includere:",
-			Options:  names,
-			Default:  names,
-			PageSize: 10,
-		}
-
-		if err := survey.AskOne(prompt, &selected); err != nil {
+		selectedNames, err := pterm.DefaultInteractiveMultiselect.
+			WithOptions(names).
+			WithDefaultOptions(names).
+			Show("Seleziona i progetti da includere:")
+		if err != nil {
 			return err
 		}
 
 		// Salva lo config in json
 		cfg := config.Config{
-			SelectedProjects: selected,
+			SelectedProjects: selectedNames,
 			RootOfProjects:   root,
 		}
 		return config.SaveSettings(cfg)

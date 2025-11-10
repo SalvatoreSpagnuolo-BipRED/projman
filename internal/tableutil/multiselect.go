@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/AlecAivazis/survey/v2"
 	"github.com/pterm/pterm"
 )
 
@@ -61,20 +60,34 @@ func (t *MultiSelectTable) Show() ([]int, error) {
 
 	// Messaggio di default
 	pterm.Info.Printfln("💡 Navigazione: ↑↓ per muoversi | Spazio per selezionare | Invio per confermare")
-	message := fmt.Sprintf("%s\n%s\n%s", t.Message, headerLine, strings.Repeat("─", len(headerLine)))
+	headerMsg := fmt.Sprintf("%s\n%s\n%s", t.Message, headerLine, strings.Repeat("─", len(headerLine)))
 
-	// Multiselect interattiva
-	var selectedIndices []int
-	prompt := &survey.MultiSelect{
-		Message: message,
-		Options: options,
-		Default: t.DefaultIndices,
-		Help:    "|",
+	// Converti gli indici di default alle opzioni corrispondenti
+	defaultOptions := make([]string, 0)
+	for _, idx := range t.DefaultIndices {
+		if idx >= 0 && idx < len(options) {
+			defaultOptions = append(defaultOptions, options[idx])
+		}
 	}
 
-	err := survey.AskOne(prompt, &selectedIndices)
+	// Multiselect interattiva con pterm
+	selectedOptions, err := pterm.DefaultInteractiveMultiselect.
+		WithOptions(options).
+		WithDefaultOptions(defaultOptions).
+		Show(headerMsg)
 	if err != nil {
 		return nil, err
+	}
+
+	// Converti le opzioni selezionate negli indici
+	selectedIndices := make([]int, 0)
+	for _, selectedOption := range selectedOptions {
+		for i, option := range options {
+			if option == selectedOption {
+				selectedIndices = append(selectedIndices, i)
+				break
+			}
+		}
 	}
 
 	return selectedIndices, nil
