@@ -126,5 +126,5 @@ Se viene passato il nome di un comando, mostra informazioni specifiche su quel c
 }
 
 func init() {
-	rootCmd.AddCommand(helpCmd)
+	RootCmd.AddCommand(helpCmd)
 }

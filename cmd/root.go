@@ -1,37 +1,35 @@
 package cmd
 
 import (
-	"fmt"
 	"os"
 
+	"github.com/SalvatoreSpagnuolo-BipRED/projman/cmd/git"
+	"github.com/SalvatoreSpagnuolo-BipRED/projman/cmd/mvn"
 	"github.com/spf13/cobra"
 )
 
-var rootCmd = &cobra.Command{
+// RootCmd rappresenta il comando base quando viene chiamato senza sottocomandi
+var RootCmd = &cobra.Command{
 	Use:   "projman",
 	Short: "Gestione multipla di progetti Git e Maven",
 	Long: `Projman è uno strumento da linea di comando che permette di gestire multiple repository Git 
 e progetti Maven contemporaneamente. Consente di selezionare un gruppo di progetti 
 e eseguire operazioni batch come git pull o mvn install su tutti i progetti selezionati.`,
-	// Uncomment the following line if your bare application
-	// has an action associated with it:
 	Run: func(cmd *cobra.Command, args []string) {
-		toggle, _ := cmd.Flags().GetBool("toggle")
-
-		fmt.Println("Hello World")
-		if toggle {
-			fmt.Println("Toggle is true")
-		}
+		// Mostra l'help quando viene chiamato senza sottocomandi
+		_ = cmd.Help()
 	},
 }
 
+// Execute esegue il comando root e gestisce l'exit code in caso di errore
 func Execute() {
-	err := rootCmd.Execute()
-	if err != nil {
+	if err := RootCmd.Execute(); err != nil {
 		os.Exit(1)
 	}
 }
 
 func init() {
-	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	// Registra i comandi dei subpackage
+	RootCmd.AddCommand(git.GetGitCmd())
+	RootCmd.AddCommand(mvn.GetMvnCmd())
 }
