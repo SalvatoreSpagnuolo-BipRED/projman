@@ -26,7 +26,9 @@ Il comando cerca il file pom.xml in ogni progetto selezionato ed esegue l'instal
 			return
 		}
 
-		pterm.Info.Println("test abilitati")
+		if runTests {
+			pterm.Info.Println("test abilitati")
+		}
 
 		// Esegui git pull per ogni progetto selezionato
 		spinner, _ := pterm.DefaultSpinner.Start("Eseguo mvn install")
