@@ -37,7 +37,7 @@ dai rispettivi repository remoti.`,
 		}
 
 		// Chiedi all'utente se vuole passare al ramo develop i progetti non su develop
-		projectInfos := make([]ProjectInfo, len(cfg.SelectedProjects))
+		projectInfos := make([]ProjectInfo, 0, len(cfg.SelectedProjects))
 		for _, p := range cfg.SelectedProjects {
 			path := filepath.Join(cfg.RootOfProjects, p)
 			isDevelop, isDeploy, currBranch, err := branchInformation(path)

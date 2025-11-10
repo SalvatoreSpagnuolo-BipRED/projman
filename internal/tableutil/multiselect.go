@@ -44,7 +44,7 @@ func (t *MultiSelectTable) Show() ([]int, error) {
 	for i, header := range t.Headers {
 		headerParts[i] = fmt.Sprintf("%-*s", colWidths[i], header)
 	}
-	headerLine := "     " + strings.Join(headerParts, "  │  ")
+	headerLine := "       " + strings.Join(headerParts, "  │  ")
 
 	// Formatta le righe come opzioni per la multiselect
 	options := make([]string, len(t.Rows))
