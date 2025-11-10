@@ -60,11 +60,7 @@ func (t *MultiSelectTable) Show() ([]int, error) {
 	}
 
 	// Messaggio di default
-	help := "💡 Navigazione: ↑↓ per muoversi | Spazio per selezionare | Invio per confermare"
-	pterm.Info.WithPrefix(pterm.Prefix{
-		Text:  "Guida",
-		Style: pterm.NewStyle(pterm.FgBlue),
-	}).Println(help)
+	pterm.Info.Printfln("💡 Navigazione: ↑↓ per muoversi | Spazio per selezionare | Invio per confermare")
 	message := fmt.Sprintf("%s\n%s\n%s", t.Message, headerLine, strings.Repeat("─", len(headerLine)))
 
 	// Multiselect interattiva
@@ -73,7 +69,7 @@ func (t *MultiSelectTable) Show() ([]int, error) {
 		Message: message,
 		Options: options,
 		Default: t.DefaultIndices,
-		Help:    " ",
+		Help:    "|",
 	}
 
 	err := survey.AskOne(prompt, &selectedIndices)
