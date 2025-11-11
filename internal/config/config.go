@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/SalvatoreSpagnuolo-BipRED/projman/internal/project"
 	"github.com/pterm/pterm"
 )
 
@@ -111,6 +112,38 @@ func CheckAndGetDirectory(directory string) (string, error) {
 	}
 
 	return absPath, nil
+}
+
+// LoadAndValidateConfig carica e valida la configurazione
+func LoadAndValidateConfig() (*Config, error) {
+	cfg, err := LoadSettings()
+	if err != nil {
+		pterm.Error.Println("Errore nel caricamento della configurazione:", err)
+		pterm.Info.Println("Esegui prima 'projman init <directory>' per configurare i progetti")
+		return nil, err
+	}
+	return &cfg, nil
+}
+
+// SelectProjectsToUpdate mostra un prompt per selezionare i progetti da aggiornare
+func SelectProjectsToUpdate(cfg *Config) ([]string, error) {
+	projUri, err := project.Discover(cfg.RootOfProjects)
+	if err != nil {
+		pterm.Error.Println("Errore nella scansione dei progetti:", err)
+		return nil, err
+	}
+
+	names := project.Names(projUri)
+	selectedNames, err := pterm.DefaultInteractiveMultiselect.
+		WithOptions(names).
+		WithDefaultOptions(cfg.SelectedProjects).
+		Show("Seleziona i progetti da aggiornare:")
+	if err != nil {
+		pterm.Error.Println("Errore nella selezione dei progetti:", err)
+		return nil, err
+	}
+
+	return selectedNames, nil
 }
 
 // ensureConfigDirExists crea la directory di configurazione se non esiste

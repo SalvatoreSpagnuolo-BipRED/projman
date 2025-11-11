@@ -71,13 +71,19 @@ Esegue operazioni Git su tutti i progetti selezionati:
 
 ### `projman mvn install [--tests|-t]`
 
-Esegue `mvn install` su tutti i progetti selezionati.
-- Per default i test sono **disabilitati** (usa `-DskipTests=true`)
-- Usa il flag `--tests` o `-t` per **abilitare** l'esecuzione dei test
+Esegue `mvn install` su tutti i progetti selezionati con **ordinamento automatico delle dipendenze**.
+
+**Funzionalità principali:**
+- 🔍 **Analisi automatica** dei file `pom.xml` per identificare le dipendenze tra progetti
+- 🔄 **Ordinamento topologico** garantisce che le dipendenze siano installate prima dei progetti che le utilizzano
+- 📦 **Supporto sottomoduli** analizza anche le dipendenze nei sottomoduli Maven
+- ⚠️ **Rilevamento cicli** identifica e notifica dipendenze circolari
+- ⚡ **Test opzionali**: di default i test sono **disabilitati** (usa `-DskipTests=true`)
+- ✅ Usa il flag `--tests` o `-t` per **abilitare** l'esecuzione dei test
 
 **Esempi:**
 ```bash
-# Install senza test
+# Install senza test (con ordinamento dipendenze)
 projman mvn install
 
 # Install con test abilitati

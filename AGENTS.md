@@ -28,7 +28,7 @@ projman/
 │   │
 │   └── mvn/                  # Comandi Maven (subpackage)
 │       ├── mvn.go           # Comando parent per operazioni Maven
-│       └── install.go       # Maven install con controllo test
+│       └── install.go       # Maven install con ordinamento dipendenze
 │
 ├── internal/                  # Pacchetti interni (non esportabili)
 │   ├── config/               # Gestione configurazione
@@ -36,6 +36,9 @@ projman/
 │   │
 │   ├── project/              # Gestione progetti
 │   │   └── project.go        # Discovery e filtering progetti Maven
+│   │
+│   ├── maven/                # Gestione dipendenze Maven
+│   │   └── dependency.go     # Parsing pom.xml e ordinamento topologico
 │   │
 │   ├── exec/                 # Utility per esecuzione comandi
 │   │   └── exec.go           # Wrapper per os/exec
@@ -93,9 +96,20 @@ projman/
 
 ### 4. Gestione Maven (package `cmd/mvn`)
 - Esegue `mvn install` su tutti i progetti selezionati
+- **Ordinamento automatico**: analizza le dipendenze Maven e ordina i progetti topologicamente
+- **Analisi dipendenze**: parse di `pom.xml` per identificare `groupId:artifactId` e dipendenze
+- **Rilevamento sottomoduli**: considera anche le dipendenze nei sottomoduli Maven
+- **Rilevamento cicli**: identifica dipendenze circolari e notifica l'errore
 - Flag `--tests/-t` per abilitare/disabilitare test
 - Default: test disabilitati (`-DskipTests=true`)
 - Report finale con statistiche successi/fallimenti
+
+### 5. Analisi Dipendenze Maven (package `internal/maven`)
+- **Parsing pom.xml**: estrae `groupId`, `artifactId` e dipendenze da file Maven
+- **Grafo dipendenze**: costruisce un grafo delle dipendenze tra progetti selezionati
+- **Ordinamento topologico**: usa l'algoritmo di Kahn per ordinare i progetti
+- **Gestione moduli**: analizza anche i sottomoduli per dipendenze annidate
+- Garantisce che le dipendenze siano installate prima dei progetti che le utilizzano
 
 ## 🛠️ Modifiche Comuni
 

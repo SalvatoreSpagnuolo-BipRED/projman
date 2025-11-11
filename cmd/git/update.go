@@ -8,7 +8,6 @@ import (
 
 	"github.com/SalvatoreSpagnuolo-BipRED/projman/internal/config"
 	"github.com/SalvatoreSpagnuolo-BipRED/projman/internal/exec"
-	"github.com/SalvatoreSpagnuolo-BipRED/projman/internal/project"
 	"github.com/SalvatoreSpagnuolo-BipRED/projman/internal/ui"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
@@ -41,13 +40,13 @@ Prima delle operazioni, eventuali modifiche non committate vengono salvate in st
 e automaticamente ripristinate al termine.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// Carica e valida la configurazione
-		cfg, err := loadAndValidateConfig()
+		cfg, err := config.LoadAndValidateConfig()
 		if err != nil {
 			return
 		}
 
 		// Permette all'utente di selezionare i progetti da aggiornare
-		selectedProjects, err := selectProjectsToUpdate(cfg)
+		selectedProjects, err := config.SelectProjectsToUpdate(cfg)
 		if err != nil {
 			return
 		}
@@ -75,38 +74,6 @@ e automaticamente ripristinate al termine.`,
 
 		pterm.Success.Println("Operazioni completate per tutti i progetti")
 	},
-}
-
-// loadAndValidateConfig carica e valida la configurazione
-func loadAndValidateConfig() (*config.Config, error) {
-	cfg, err := config.LoadSettings()
-	if err != nil {
-		pterm.Error.Println("Errore nel caricamento della configurazione:", err)
-		pterm.Info.Println("Esegui prima 'projman init <directory>' per configurare i progetti")
-		return nil, err
-	}
-	return &cfg, nil
-}
-
-// selectProjectsToUpdate mostra un prompt per selezionare i progetti da aggiornare
-func selectProjectsToUpdate(cfg *config.Config) ([]string, error) {
-	projUri, err := project.Discover(cfg.RootOfProjects)
-	if err != nil {
-		pterm.Error.Println("Errore nella scansione dei progetti:", err)
-		return nil, err
-	}
-
-	names := project.Names(projUri)
-	selectedNames, err := pterm.DefaultInteractiveMultiselect.
-		WithOptions(names).
-		WithDefaultOptions(cfg.SelectedProjects).
-		Show("Seleziona i progetti da aggiornare:")
-	if err != nil {
-		pterm.Error.Println("Errore nella selezione dei progetti:", err)
-		return nil, err
-	}
-
-	return selectedNames, nil
 }
 
 // gatherProjectsInfo raccoglie informazioni sui branch di tutti i progetti selezionati
