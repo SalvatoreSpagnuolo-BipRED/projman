@@ -4,8 +4,8 @@ import (
 	"path/filepath"
 
 	"github.com/SalvatoreSpagnuolo-BipRED/projman/internal/config"
-	"github.com/SalvatoreSpagnuolo-BipRED/projman/internal/exec"
 	"github.com/SalvatoreSpagnuolo-BipRED/projman/internal/maven"
+	"github.com/SalvatoreSpagnuolo-BipRED/projman/internal/maven/executor"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 )
@@ -97,13 +97,13 @@ Esempi:
 			// Prepara gli argomenti per Maven
 			args := buildMavenArgs(pomPath, runTests)
 
-			// Esegui il comando Maven con output scrollabile (15 righe)
-			if err := exec.RunWithScrollableOutput("mvn", args, 15); err != nil {
+			// Esegui il comando Maven con il nuovo executor
+			mavenExec := executor.NewMavenExecutor(projectName, args)
+			if err := mavenExec.Run(); err != nil {
 				pterm.Error.Printf("✗ Progetto %s: errore durante l'installazione\n", projectName)
 				pterm.Error.Println("  ", err.Error())
 				failureCount++
 			} else {
-				pterm.Success.Printf("✓ Progetto %s: installazione completata\n", projectName)
 				successCount++
 			}
 

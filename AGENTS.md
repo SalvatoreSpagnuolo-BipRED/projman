@@ -31,8 +31,9 @@ projman/
     ├── buildsystem/buildsystem.go      # Interfacce comuni
     ├── maven/                          # Parser Maven
     │   ├── parser.go                   # Parsing pom.xml
-    │   └── compat.go                   # Compatibilità API
-    ├── exec/exec.go                    # Esecuzione comandi (Run, RunWithSpinner)
+    │   └── executor/                   # Executor Maven-specific
+    │       └── executor.go             # Parsing output Maven + logging
+    ├── exec/exec.go                    # Esecuzione comandi generici
     └── ui/multiselect.go               # Selezione interattiva
 ```
 
@@ -59,7 +60,10 @@ projman/
 - Analisi dipendenze tra progetti (parsing `pom.xml`)
 - **Ordinamento topologico** con algoritmo di Kahn (`internal/graph`)
 - Rilevamento cicli e sottomoduli
-- Output semplice con spinner e timer (nessun artefatto su terminali lenti)
+- Output dettagliato con parsing fasi Maven:
+  - Riconoscimento fasi (clean, compile, test, package, install)
+  - Logging test con risultati per classe/metodo
+  - Riepilogo finale delle fasi eseguite
 - Flag `--tests/-t` (default: test disabilitati)
 
 ## 🛠️ Task Comuni
@@ -84,18 +88,29 @@ func init() {
 }
 ```
 
-### Eseguire Comandi Lunghi
+### Eseguire Comandi
+
+**Comandi generici:**
 ```go
 import "github.com/SalvatoreSpagnuolo-BipRED/projman/internal/exec"
 
-// Con spinner e timer (senza artefatti)
-exec.RunWithSpinner("mvn", []string{"install"}, 0)
+// Con spinner e timer
+exec.RunWithSpinner("comando", []string{"arg1", "arg2"}, 0)
 
 // Output normale in tempo reale
 exec.Run("git", "status")
 
 // Catturare output come stringa
 output, err := exec.RunWithOutput("git", "rev-parse", "HEAD")
+```
+
+**Comandi Maven con parsing output:**
+```go
+import "github.com/SalvatoreSpagnuolo-BipRED/projman/internal/maven/executor"
+
+// Esegue Maven con logging dettagliato delle fasi e test
+mavenExec := executor.NewMavenExecutor("project-name", []string{"-f", "pom.xml", "install"})
+err := mavenExec.Run()
 ```
 
 ## 📝 Convenzioni

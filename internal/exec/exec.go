@@ -63,9 +63,6 @@ func RunWithSpinner(name string, args []string, _ int) error {
 	// Mostra il comando che sta per essere eseguito
 	pterm.Info.Printf("$ %s %s\n", name, strings.Join(args, " "))
 
-	// Crea lo spinner
-	spinner, _ := pterm.DefaultSpinner.Start("Esecuzione in corso...")
-
 	// Prepara il comando
 	cmd := exec.Command(name, args...)
 	cmd.Env = os.Environ()
@@ -77,11 +74,18 @@ func RunWithSpinner(name string, args []string, _ int) error {
 	// Avvia il comando
 	startTime := time.Now()
 	if err := cmd.Start(); err != nil {
-		spinner.Fail("Errore avvio comando")
+		pterm.Error.Println("Errore avvio comando")
 		return fmt.Errorf("errore avvio comando '%s %s': %w", name, strings.Join(args, " "), err)
 	}
 
-	// Goroutine per aggiornare lo spinner con il timer
+	// Crea lo spinner che girerà continuamente con messaggio fisso
+	spinnerText := "Esecuzione in corso"
+	spinner, _ := pterm.DefaultSpinner.Start(spinnerText)
+
+	// Area per il timer
+	area, _ := pterm.DefaultArea.Start()
+
+	// Goroutine per aggiornare il timer ogni secondo
 	stopUpdater := make(chan bool)
 	go func() {
 		ticker := time.NewTicker(1 * time.Second)
@@ -93,7 +97,7 @@ func RunWithSpinner(name string, args []string, _ int) error {
 				elapsed := time.Since(startTime)
 				minutes := int(elapsed.Minutes())
 				seconds := int(elapsed.Seconds()) % 60
-				spinner.UpdateText(fmt.Sprintf("Esecuzione in corso... (%dm %ds)", minutes, seconds))
+				area.Update(fmt.Sprintf("Tempo trascorso: %dm %ds", minutes, seconds))
 			case <-stopUpdater:
 				return
 			}
@@ -103,8 +107,9 @@ func RunWithSpinner(name string, args []string, _ int) error {
 	// Attendi il completamento del comando
 	cmdErr := cmd.Wait()
 
-	// Ferma l'updater
+	// Ferma l'updater e l'area
 	close(stopUpdater)
+	_ = area.Stop()
 
 	// Mostra il risultato
 	elapsed := time.Since(startTime)
