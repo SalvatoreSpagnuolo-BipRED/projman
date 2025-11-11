@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/SalvatoreSpagnuolo-BipRED/projman/cmd/git"
@@ -8,10 +9,16 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const (
+	// Version rappresenta la versione corrente di Projman
+	Version = "1.0.2"
+)
+
 // RootCmd rappresenta il comando base quando viene chiamato senza sottocomandi
 var RootCmd = &cobra.Command{
-	Use:   "projman",
-	Short: "Gestione multipla di progetti Git e Maven",
+	Use:     "projman",
+	Short:   "Gestione multipla di progetti Git e Maven",
+	Version: Version,
 	Long: `Projman è uno strumento da linea di comando che permette di gestire multiple repository Git 
 e progetti Maven contemporaneamente. Consente di selezionare un gruppo di progetti 
 e eseguire operazioni batch come git pull o mvn install su tutti i progetti selezionati.`,
@@ -32,4 +39,7 @@ func init() {
 	// Registra i comandi dei subpackage
 	RootCmd.AddCommand(git.GetGitCmd())
 	RootCmd.AddCommand(mvn.GetMvnCmd())
+
+	// Personalizza il template della versione
+	RootCmd.SetVersionTemplate(fmt.Sprintf("Projman v%s\n", Version))
 }

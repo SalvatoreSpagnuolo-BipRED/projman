@@ -2,7 +2,7 @@
 
 [![Go Version](https://img.shields.io/badge/Go-1.25.4-blue.svg)](https://golang.org)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-1.0.0-brightgreen.svg)](https://github.com/SalvatoreSpagnuolo-BipRED/projman/releases)
+[![Version](https://img.shields.io/badge/Version-1.0.2-brightgreen.svg)](https://github.com/SalvatoreSpagnuolo-BipRED/projman/releases)
 
 **Projman** è un tool CLI scritto in Go per gestire in batch multipli progetti Maven/Git.
 

@@ -34,9 +34,20 @@ type ProfileConfig struct {
 	Profiles       map[string]Config `json:"profiles"`        // Mappa nome_profilo -> Config
 }
 
-// SaveSettings salva la configurazione nel file JSON di sistema
+// SaveSettings salva la configurazione sul profilo corrente
 func SaveSettings(c Config) error {
-	return SaveProfile("default", c)
+	// Ottiene il profilo corrente
+	profileCfg, err := loadProfileConfig()
+	if err != nil {
+		return fmt.Errorf("impossibile caricare la configurazione: %w", err)
+	}
+
+	if profileCfg.CurrentProfile == "" {
+		return fmt.Errorf("nessun profilo attivo")
+	}
+
+	// Salva sul profilo corrente
+	return SaveProfile(profileCfg.CurrentProfile, c)
 }
 
 // SaveProfile salva un profilo specifico nella configurazione
