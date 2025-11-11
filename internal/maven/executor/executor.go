@@ -85,6 +85,9 @@ func (mavenExec *MavenExecutor) Run() error {
 		return fmt.Errorf("errore avvio comando: %w", err)
 	}
 
+	// Info spinner iniziale
+	mavenExec.currentSpinner, _ = pterm.DefaultSpinner.Start("Starting Maven build...")
+
 	// Leggi output in goroutine
 	done := make(chan bool, 2)
 	go mavenExec.readOutput(stdout, done)
