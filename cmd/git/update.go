@@ -253,6 +253,25 @@ func stashUncommittedChanges(projectPath string) (bool, error) {
 		return false, nil // Nessuna modifica da salvare
 	}
 
+	// Verifica se ci sono file tracciati modificati o staged
+	// Ignora i file untracked (??) che non possono essere inclusi nello stash
+	hasTrackedChanges := false
+	lines := strings.Split(status, "\n")
+	for _, line := range lines {
+		if len(line) >= 2 {
+			// I primi due caratteri indicano lo stato (staged e working tree)
+			// ?? indica file untracked che non vanno nello stash
+			if line[0:2] != "??" {
+				hasTrackedChanges = true
+				break
+			}
+		}
+	}
+
+	if !hasTrackedChanges {
+		return false, nil // Solo file untracked, non serve stash
+	}
+
 	pterm.Info.Println("Rilevati cambiamenti non committati, eseguo stash...")
 	if err := exec.Run("git", "-C", projectPath, "stash", "push", "-m", "projman auto-stash"); err != nil {
 		pterm.Error.Println("Errore durante lo stash")
