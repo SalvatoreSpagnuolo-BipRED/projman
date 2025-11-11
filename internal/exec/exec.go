@@ -130,3 +130,27 @@ func RunWithSpinner(name string, args []string, _ int) error {
 func RunWithScrollableOutput(name string, args []string, maxLines int) error {
 	return RunWithSpinner(name, args, maxLines)
 }
+
+// WaitForUserInput blocca l'esecuzione e chiede all'utente se continuare o terminare.
+// Restituisce true se l'utente vuole continuare, false se vuole terminare l'esecuzione.
+func WaitForUserInput(context string) bool {
+	pterm.Println()
+	pterm.Warning.Printf("⏸  Errore rilevato: %s\n", context)
+	pterm.Warning.Println("Risolvi manualmente il problema prima di continuare.")
+	pterm.Println()
+
+	// Chiedi all'utente se vuole continuare
+	result, _ := pterm.DefaultInteractiveConfirm.
+		WithDefaultText("Vuoi continuare con il prossimo progetto?").
+		WithDefaultValue(true).
+		Show()
+
+	if result {
+		pterm.Success.Println("▶  Ripresa esecuzione...")
+		pterm.Println()
+		return true
+	}
+
+	pterm.Info.Println("⏹  Interruzione esecuzione richiesta dall'utente")
+	return false
+}

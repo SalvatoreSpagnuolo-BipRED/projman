@@ -1,11 +1,10 @@
 package mvn
 
 import (
-	"bufio"
-	"os"
 	"path/filepath"
 
 	"github.com/SalvatoreSpagnuolo-BipRED/projman/internal/config"
+	"github.com/SalvatoreSpagnuolo-BipRED/projman/internal/exec"
 	"github.com/SalvatoreSpagnuolo-BipRED/projman/internal/maven"
 	"github.com/SalvatoreSpagnuolo-BipRED/projman/internal/maven/executor"
 	"github.com/pterm/pterm"
@@ -87,6 +86,7 @@ Esempi:
 		// Contatori per statistiche finali
 		successCount := 0
 		failureCount := 0
+		skippedCount := 0
 
 		// Esegui mvn install per ogni progetto nell'ordine corretto
 		for i, projectName := range sortedProjects {
@@ -106,8 +106,12 @@ Esempi:
 				pterm.Error.Println("  ", err.Error())
 				failureCount++
 
-				// Attendi input dall'utente prima di continuare
-				waitForUserInput(projectName)
+				// Chiedi all'utente se vuole continuare
+				if !exec.WaitForUserInput(projectName) {
+					pterm.Warning.Println("Esecuzione interrotta dall'utente")
+					skippedCount = len(sortedProjects) - i - 1
+					break
+				}
 			} else {
 				successCount++
 			}
@@ -119,7 +123,7 @@ Esempi:
 		}
 
 		// Mostra il riepilogo finale
-		printInstallSummary(successCount, failureCount)
+		printInstallSummary(successCount, failureCount, skippedCount)
 	},
 }
 
@@ -133,11 +137,11 @@ func buildMavenArgs(pomPath string, includeTests bool) []string {
 }
 
 // printInstallSummary stampa un riepilogo delle operazioni di installazione
-func printInstallSummary(successCount, failureCount int) {
+func printInstallSummary(successCount, failureCount, skippedCount int) {
 	pterm.Println()
 	pterm.DefaultSection.Println("Riepilogo Operazioni")
 
-	totalCount := successCount + failureCount
+	totalCount := successCount + failureCount + skippedCount
 	pterm.Info.Printf("Progetti totali: %d\n", totalCount)
 
 	if successCount > 0 {
@@ -146,23 +150,15 @@ func printInstallSummary(successCount, failureCount int) {
 
 	if failureCount > 0 {
 		pterm.Error.Printf("Installazioni fallite: %d\n", failureCount)
-	} else {
+	}
+
+	if skippedCount > 0 {
+		pterm.Warning.Printf("Installazioni saltate: %d\n", skippedCount)
+	}
+
+	if failureCount == 0 && skippedCount == 0 {
 		pterm.Success.Println("Tutte le installazioni completate con successo!")
 	}
-}
-
-// waitForUserInput blocca l'esecuzione e attende che l'utente prema Invio
-func waitForUserInput(projectName string) {
-	pterm.Println()
-	pterm.Warning.Printf("⏸  Esecuzione in pausa per il progetto: %s\n", projectName)
-	pterm.Info.Println("Risolvi manualmente il problema, poi premi INVIO per continuare con il progetto successivo...")
-
-	// Attendi input dall'utente
-	reader := bufio.NewReader(os.Stdin)
-	_, _ = reader.ReadString('\n')
-
-	pterm.Success.Println("▶  Ripresa esecuzione...")
-	pterm.Println()
 }
 
 func init() {

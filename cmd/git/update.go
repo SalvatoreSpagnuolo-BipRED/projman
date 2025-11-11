@@ -193,7 +193,14 @@ func processProjects(projectInfos []ProjectInfo) {
 		pterm.DefaultSection.Printf("Elaborazione progetto: %s", pInfo.Name)
 
 		if err := processProject(&pInfo); err != nil {
-			// L'errore è già stato gestito, continua con il prossimo progetto
+			pterm.Error.Printf("Errore durante l'elaborazione di '%s': %v\n", pInfo.Name, err)
+
+			// Chiedi all'utente se vuole continuare
+			if !exec.WaitForUserInput(pInfo.Name) {
+				pterm.Warning.Println("Esecuzione interrotta dall'utente")
+				return
+			}
+
 			pterm.Println() // Riga vuota per separare i progetti
 			continue
 		}
@@ -237,8 +244,9 @@ func processProject(pInfo *ProjectInfo) error {
 // stashUncommittedChanges salva in stash eventuali modifiche non committate
 func stashUncommittedChanges(projectPath string) (bool, error) {
 	status, err := exec.RunWithOutput("git", "-C", projectPath, "status", "--porcelain")
-	if err := handleGitError("Impossibile verificare lo status del repository", err); err != nil {
-		return false, err
+	if err != nil {
+		pterm.Error.Println("Impossibile verificare lo status del repository")
+		return false, fmt.Errorf("impossibile verificare lo status del repository: %w", err)
 	}
 
 	if status == "" {
@@ -246,9 +254,9 @@ func stashUncommittedChanges(projectPath string) (bool, error) {
 	}
 
 	pterm.Info.Println("Rilevati cambiamenti non committati, eseguo stash...")
-	if err := handleGitError("Errore durante lo stash",
-		exec.Run("git", "-C", projectPath, "stash", "push", "-m", "projman auto-stash")); err != nil {
-		return false, err
+	if err := exec.Run("git", "-C", projectPath, "stash", "push", "-m", "projman auto-stash"); err != nil {
+		pterm.Error.Println("Errore durante lo stash")
+		return false, fmt.Errorf("errore durante lo stash: %w", err)
 	}
 
 	pterm.Success.Println("Stash eseguito con successo")
@@ -259,9 +267,9 @@ func stashUncommittedChanges(projectPath string) (bool, error) {
 func switchToDevelopBranch(pInfo *ProjectInfo) error {
 	pterm.Info.Println("Cambio branch a 'develop'...")
 
-	if err := handleGitError("Errore durante il cambio branch",
-		exec.Run("git", "-C", pInfo.Path, "checkout", "develop")); err != nil {
-		return err
+	if err := exec.Run("git", "-C", pInfo.Path, "checkout", "develop"); err != nil {
+		pterm.Error.Println("Errore durante il cambio branch")
+		return fmt.Errorf("errore durante il cambio branch: %w", err)
 	}
 
 	pterm.Success.Println("Branch cambiato a 'develop'")
@@ -290,9 +298,9 @@ func updateRepository(pInfo *ProjectInfo) error {
 
 // updateDevelopBranch esegue git pull per il branch develop
 func updateDevelopBranch(pInfo *ProjectInfo) error {
-	if err := handleGitError("Errore durante il git pull",
-		exec.Run("git", "-C", pInfo.Path, "pull", "origin", "develop")); err != nil {
-		return err
+	if err := exec.Run("git", "-C", pInfo.Path, "pull", "origin", "develop"); err != nil {
+		pterm.Error.Println("Errore durante il git pull")
+		return fmt.Errorf("errore durante il git pull: %w", err)
 	}
 	pterm.Success.Println("Git pull eseguito con successo sul branch 'develop'")
 	return nil
@@ -300,9 +308,9 @@ func updateDevelopBranch(pInfo *ProjectInfo) error {
 
 // updateDeployBranch esegue git pull per un branch deploy/*
 func updateDeployBranch(pInfo *ProjectInfo) error {
-	if err := handleGitError("Errore durante il git pull",
-		exec.Run("git", "-C", pInfo.Path, "pull", "origin", pInfo.CurrentBranch)); err != nil {
-		return err
+	if err := exec.Run("git", "-C", pInfo.Path, "pull", "origin", pInfo.CurrentBranch); err != nil {
+		pterm.Error.Println("Errore durante il git pull")
+		return fmt.Errorf("errore durante il git pull: %w", err)
 	}
 	pterm.Success.Printf("Git pull eseguito con successo sul branch '%s'\n", pInfo.CurrentBranch)
 	return nil
@@ -311,15 +319,15 @@ func updateDeployBranch(pInfo *ProjectInfo) error {
 // updateFeatureBranch esegue git fetch + git merge di develop per feature branch
 func updateFeatureBranch(pInfo *ProjectInfo) error {
 	// Fetch delle modifiche da develop
-	if err := handleGitError("Errore durante il git fetch",
-		exec.Run("git", "-C", pInfo.Path, "fetch", "origin", "develop")); err != nil {
-		return err
+	if err := exec.Run("git", "-C", pInfo.Path, "fetch", "origin", "develop"); err != nil {
+		pterm.Error.Println("Errore durante il git fetch")
+		return fmt.Errorf("errore durante il git fetch: %w", err)
 	}
 
 	// Merge di develop nel branch corrente
-	if err := handleGitError("Errore durante il git merge",
-		exec.Run("git", "-C", pInfo.Path, "merge", "origin/develop")); err != nil {
-		return err
+	if err := exec.Run("git", "-C", pInfo.Path, "merge", "origin/develop"); err != nil {
+		pterm.Error.Println("Errore durante il git merge")
+		return fmt.Errorf("errore durante il git merge: %w", err)
 	}
 
 	pterm.Success.Printf("Fetch e merge di 'develop' eseguiti con successo sul branch '%s'\n", pInfo.CurrentBranch)
@@ -330,9 +338,9 @@ func updateFeatureBranch(pInfo *ProjectInfo) error {
 func popStash(projectPath string) error {
 	pterm.Info.Println("Ripristino modifiche locali...")
 
-	if err := handleGitError("Errore durante il ripristino dello stash",
-		exec.Run("git", "-C", projectPath, "stash", "pop")); err != nil {
-		return err
+	if err := exec.Run("git", "-C", projectPath, "stash", "pop"); err != nil {
+		pterm.Error.Println("Errore durante il ripristino dello stash")
+		return fmt.Errorf("errore durante il ripristino dello stash: %w", err)
 	}
 
 	pterm.Success.Println("Modifiche locali ripristinate con successo")
@@ -350,18 +358,6 @@ func branchInformation(projectPath string) (isDevelop, isDeploy bool, currentBra
 	isDeploy = strings.HasPrefix(currentBranch, "deploy/")
 
 	return isDevelop, isDeploy, currentBranch, nil
-}
-
-// handleGitError gestisce gli errori Git permettendo all'utente di continuare
-func handleGitError(msg string, err error) error {
-	if err != nil {
-		pterm.Warning.Printfln("Si è verificato un errore: %s", msg)
-		pterm.Error.Println("  ", err.Error())
-		pterm.Info.Println("Risolvi manualmente il problema prima di continuare")
-		_, _ = pterm.DefaultInteractiveConfirm.Show("Premi Invio per continuare con il prossimo progetto")
-		return err
-	}
-	return nil
 }
 
 func init() {
