@@ -60,10 +60,12 @@ projman/
 - Analisi dipendenze tra progetti (parsing `pom.xml`)
 - **Ordinamento topologico** con algoritmo di Kahn (`internal/graph`)
 - Rilevamento cicli e sottomoduli
-- Output dettagliato con parsing fasi Maven:
-  - Riconoscimento fasi (clean, compile, test, package, install)
-  - Logging test con risultati per classe/metodo
-  - Riepilogo finale delle fasi eseguite
+- **Executor Maven dedicato** (`internal/maven/executor/`):
+  - Parsing preciso con regex dell'output Maven
+  - Riconoscimento fasi (clean, compile, test-compile, test, package, install, deploy)
+  - Spinner per ogni fase che viene completato quando la fase finisce
+  - Tracking test in esecuzione con risultati (passed/failed/errors)
+  - Supporto WAR, JAR, integration tests
 - Flag `--tests/-t` (default: test disabilitati)
 
 ## 🛠️ Task Comuni

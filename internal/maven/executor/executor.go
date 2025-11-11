@@ -3,18 +3,48 @@ package executor
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
+	"regexp"
 	"strings"
-	"time"
 
 	"github.com/pterm/pterm"
 )
 
-// MavenExecutor gestisce l'esecuzione di comandi Maven con logging semplice
+// Pattern per il matching dell'output Maven
+var (
+	// Pattern per rilevare l'esecuzione di un plugin Maven
+	// Esempio: [INFO] --- compiler:3.14.1:compile (default-compile) @ project-name ---
+	// Esempio: [INFO] --- maven-compiler-plugin:3.8.1:compile (default-compile) @ project-name ---
+	pluginPattern = regexp.MustCompile(`\[INFO] --- ([a-z-]+):.*?:([a-z-]+).*? ---`)
+
+	// Pattern per i test in esecuzione
+	// Esempio: [INFO] Running com.example.MyTest
+	testRunningPattern = regexp.MustCompile(`\[INFO] Running (.+)`)
+
+	// Pattern per i risultati dei test
+	// Esempio: [INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0
+	testResultsPattern = regexp.MustCompile(`\[INFO] Tests run: (\d+), Failures: (\d+), Errors: (\d+), Skipped: (\d+)`)
+
+	// Pattern per BUILD SUCCESS/FAILURE
+	buildResultPattern = regexp.MustCompile(`\[INFO] BUILD (SUCCESS|FAILURE)`)
+)
+
+// MavenPhase rappresenta una fase Maven riconosciuta
+type MavenPhase struct {
+	Name        string // Nome leggibile della fase (es: "COMPILE")
+	Plugin      string // Nome del plugin Maven
+	Goal        string // Goal del plugin
+	Description string // Descrizione breve per lo spinner
+}
+
+// MavenExecutor gestisce l'esecuzione di comandi Maven
 type MavenExecutor struct {
-	projectName string
-	args        []string
+	projectName    string
+	args           []string
+	currentSpinner *pterm.SpinnerPrinter
+	currentPhase   *MavenPhase
 }
 
 // NewMavenExecutor crea un nuovo executor Maven
@@ -25,176 +55,267 @@ func NewMavenExecutor(projectName string, args []string) *MavenExecutor {
 	}
 }
 
-// Run esegue il comando Maven con uno spinner e logging delle fasi
-func (me *MavenExecutor) Run() error {
-	pterm.Info.Printf("$ mvn %s\n", strings.Join(me.args, " "))
+// Run esegue il comando Maven mostrando le fasi con spinner
+func (mavenExec *MavenExecutor) Run() error {
+	// Mostra comando con Info (senza spinner che si chiude subito)
+	pterm.Info.Printf("$ mvn %s\n", strings.Join(mavenExec.args, " "))
 
-	// Avvia lo spinner
-	spinner, _ := pterm.DefaultSpinner.Start("Esecuzione Maven in corso...")
+	// Prepara ed esegui il comando
+	cmd := exec.Command("mvn", mavenExec.args...)
+	// Disabilita buffering Maven per output in tempo reale
+	env := os.Environ()
+	env = append(env, "MAVEN_OPTS=-Djansi.force=true")
+	cmd.Env = env
 
-	// Prepara il comando
-	cmd := exec.Command("mvn", me.args...)
-	cmd.Env = os.Environ()
-
-	// Setup pipe per catturare output
+	// Unisci stdout e stderr per catturare tutto l'output
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
-		spinner.Fail("Errore setup comando")
 		return fmt.Errorf("errore stdout pipe: %w", err)
 	}
 
 	stderr, err := cmd.StderrPipe()
 	if err != nil {
-		spinner.Fail("Errore setup comando")
 		return fmt.Errorf("errore stderr pipe: %w", err)
 	}
 
-	// Avvia il comando
-	startTime := time.Now()
+	// Avvia il comando Maven
 	if err := cmd.Start(); err != nil {
-		spinner.Fail("Errore avvio Maven")
 		return fmt.Errorf("errore avvio comando: %w", err)
 	}
 
-	// Canale per comunicare tra goroutine
+	// Leggi output in goroutine
 	done := make(chan bool, 2)
+	go mavenExec.readOutput(stdout, done)
+	go mavenExec.readOutput(stderr, done)
 
-	// Leggi stdout in background
-	go func() {
-		scanner := bufio.NewScanner(stdout)
-		for scanner.Scan() {
-			me.processLine(scanner.Text(), spinner)
-		}
-		done <- true
-	}()
-
-	// Leggi stderr in background
-	go func() {
-		scanner := bufio.NewScanner(stderr)
-		for scanner.Scan() {
-			me.processLine(scanner.Text(), spinner)
-		}
-		done <- true
-	}()
-
-	// Attendi fine lettura
+	// Attendi completamento lettura
 	<-done
 	<-done
 
 	// Attendi fine comando
-	cmdErr := cmd.Wait()
+	return cmd.Wait()
 
-	// Calcola tempo trascorso
-	elapsed := time.Since(startTime)
-	minutes := int(elapsed.Minutes())
-	seconds := int(elapsed.Seconds()) % 60
-
-	// Mostra risultato
-	if cmdErr != nil {
-		spinner.Fail(fmt.Sprintf("Build fallita dopo %dm %ds", minutes, seconds))
-		return fmt.Errorf("comando maven fallito: %w", cmdErr)
-	}
-
-	spinner.Success(fmt.Sprintf("Build completata in %dm %ds", minutes, seconds))
-	return nil
 }
 
-// processLine processa una riga di output Maven e logga le fasi importanti
-func (me *MavenExecutor) processLine(line string, spinner *pterm.SpinnerPrinter) {
-	line = strings.TrimSpace(line)
+// readOutput legge l'output da uno stream
+func (mavenExec *MavenExecutor) readOutput(stream io.Reader, done chan bool) {
+	scanner := bufio.NewScanner(stream)
+	for scanner.Scan() {
+		mavenExec.processOutputLine(scanner.Text())
+	}
+	done <- true
+}
 
+// processOutputLine processa una riga di output Maven
+func (mavenExec *MavenExecutor) processOutputLine(line string) {
+	line = strings.TrimSpace(line)
 	if line == "" {
 		return
 	}
 
-	// Rileva le fasi Maven (plugin execution)
-	if strings.Contains(line, "---") && strings.Contains(line, "maven-") {
-		phase := me.detectPhase(line)
-		if phase != "" {
-			// Ferma temporaneamente lo spinner per stampare la fase
-			_ = spinner.Stop()
-			pterm.Info.Printfln("▶ Fase: %s", phase)
-			// Riavvia lo spinner
-			newSpinner, _ := pterm.DefaultSpinner.Start("Esecuzione Maven in corso...")
-			*spinner = *newSpinner
+	// 1. Rileva inizio nuova fase Maven (plugin execution)
+	if matches := pluginPattern.FindStringSubmatch(line); matches != nil {
+		mavenExec.handlePhaseStart(matches[1], matches[2])
+		return
+	}
+
+	// 2. Rileva esecuzione test
+	if matches := testRunningPattern.FindStringSubmatch(line); matches != nil {
+		mavenExec.handleTestStart(matches[1])
+		return
+	}
+
+	// 3. Rileva risultati test
+	if matches := testResultsPattern.FindStringSubmatch(line); matches != nil {
+		mavenExec.handleTestResults(matches[1], matches[2], matches[3], matches[4])
+		return
+	}
+
+	// 4. Rileva fine build (implicitamente completa ultima fase)
+	if buildResultPattern.MatchString(line) {
+		if mavenExec.currentSpinner != nil {
+			mavenExec.currentSpinner.Success("Build completed")
+			mavenExec.currentSpinner = nil
 		}
 		return
-	}
-
-	// Rileva classe di test in esecuzione
-	if strings.HasPrefix(line, "[INFO] Running ") {
-		testClass := strings.TrimPrefix(line, "[INFO] Running ")
-		_ = spinner.Stop()
-		pterm.Info.Printfln("  🧪 Test: %s", testClass)
-		newSpinner, _ := pterm.DefaultSpinner.Start("Esecuzione Maven in corso...")
-		*spinner = *newSpinner
-		return
-	}
-
-	// Rileva risultati test
-	if strings.HasPrefix(line, "[INFO] Tests run:") {
-		_ = spinner.Stop()
-		me.logTestResults(line)
-		newSpinner, _ := pterm.DefaultSpinner.Start("Esecuzione Maven in corso...")
-		*spinner = *newSpinner
-		return
-	}
-
-	// Rileva build success/failure
-	if strings.Contains(line, "BUILD SUCCESS") || strings.Contains(line, "BUILD FAILURE") {
-		return // Verrà gestito dal cmdErr
-	}
-
-	// Logga errori Maven
-	if strings.HasPrefix(line, "[ERROR]") && !strings.Contains(line, "ERROR") {
-		_ = spinner.Stop()
-		pterm.Error.Println(strings.TrimPrefix(line, "[ERROR] "))
-		newSpinner, _ := pterm.DefaultSpinner.Start("Esecuzione Maven in corso...")
-		*spinner = *newSpinner
 	}
 }
 
-// detectPhase rileva la fase Maven dalla riga di plugin execution
-func (me *MavenExecutor) detectPhase(line string) string {
-	if strings.Contains(line, "maven-clean-plugin") {
-		return "CLEAN"
+// handlePhaseStart gestisce l'inizio di una nuova fase Maven
+func (mavenExec *MavenExecutor) handlePhaseStart(plugin, goal string) {
+	// Mappa plugin+goal a fase leggibile
+	phase := mavenExec.identifyPhase(plugin, goal)
+	if phase == nil {
+		return // Fase non riconosciuta, ignora
 	}
-	if strings.Contains(line, "maven-compiler-plugin") {
-		if strings.Contains(line, "compile") {
-			return "COMPILE"
-		}
-		if strings.Contains(line, "testCompile") {
-			return "TEST-COMPILE"
-		}
+
+	// Se stessa fase, non fare nulla
+	if mavenExec.currentPhase != nil && mavenExec.currentPhase.Name == phase.Name {
+		return
 	}
-	if strings.Contains(line, "maven-surefire-plugin") || strings.Contains(line, "maven-failsafe-plugin") {
-		return "TEST"
+
+	// Completa fase precedente con Success
+	if mavenExec.currentSpinner != nil {
+		mavenExec.currentSpinner.Success()
 	}
-	if strings.Contains(line, "maven-jar-plugin") || strings.Contains(line, "maven-war-plugin") {
-		return "PACKAGE"
-	}
-	if strings.Contains(line, "maven-install-plugin") {
-		return "INSTALL"
-	}
-	return ""
+
+	// Avvia nuovo spinner per questa fase
+	mavenExec.currentPhase = phase
+	mavenExec.currentSpinner, _ = pterm.DefaultSpinner.Start(phase.Description)
 }
 
-// logTestResults logga i risultati dei test in modo semplice
-func (me *MavenExecutor) logTestResults(line string) {
-	// Esempio: [INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0
-	summary := strings.TrimPrefix(line, "[INFO] ")
+// handleTestStart aggiorna lo spinner con la classe di test in esecuzione
+func (mavenExec *MavenExecutor) handleTestStart(testClass string) {
+	if mavenExec.currentSpinner == nil {
+		return
+	}
+
+	// Estrai nome breve della classe
+	shortName := testClass
+	if idx := strings.LastIndex(testClass, "."); idx != -1 {
+		shortName = testClass[idx+1:]
+	}
+
+	mavenExec.currentSpinner.UpdateText(fmt.Sprintf("%s - %s", mavenExec.currentPhase.Description, shortName))
+}
+
+// handleTestResults aggiorna lo spinner con i risultati dei test
+func (mavenExec *MavenExecutor) handleTestResults(runStr, failStr, errStr, skipStr string) {
+	if mavenExec.currentSpinner == nil {
+		return
+	}
 
 	var run, failures, errors, skipped int
-	_, _ = fmt.Sscanf(summary, "Tests run: %d, Failures: %d, Errors: %d, Skipped: %d",
-		&run, &failures, &errors, &skipped)
+	_, _ = fmt.Sscanf(runStr, "%d", &run)
+	_, _ = fmt.Sscanf(failStr, "%d", &failures)
+	_, _ = fmt.Sscanf(errStr, "%d", &errors)
+	_, _ = fmt.Sscanf(skipStr, "%d", &skipped)
 
 	passed := run - failures - errors - skipped
 
+	var message string
 	if failures > 0 || errors > 0 {
-		pterm.Error.Printf("    ✗ %d passed, %d failed, %d errors\n", passed, failures, errors)
-	} else if skipped > 0 {
-		pterm.Success.Printf("    ✓ %d passed, %d skipped\n", passed, skipped)
-	} else if run > 0 {
-		pterm.Success.Printf("    ✓ %d test(s) passed\n", passed)
+		message = fmt.Sprintf("%s - %d passed, %d failed", mavenExec.currentPhase.Description, passed, failures+errors)
+	} else {
+		message = fmt.Sprintf("%s - %d passed", mavenExec.currentPhase.Description, passed)
+	}
+
+	mavenExec.currentSpinner.UpdateText(message)
+}
+
+// identifyPhase identifica la fase Maven dal plugin e goal
+func (mavenExec *MavenExecutor) identifyPhase(plugin, goal string) *MavenPhase {
+	// Mappa (plugin, goal) -> fase
+	// Supporta sia nomi brevi (compiler) che completi (maven-compiler-plugin)
+	switch {
+	// CLEAN
+	case (plugin == "maven-clean-plugin" || plugin == "clean") && goal == "clean":
+		return &MavenPhase{
+			Name:        "CLEAN",
+			Plugin:      plugin,
+			Goal:        goal,
+			Description: "CLEAN",
+		}
+
+	// RESOURCES (copia risorse)
+	case (plugin == "maven-resources-plugin" || plugin == "resources") && goal == "resources":
+		return &MavenPhase{
+			Name:        "RESOURCES",
+			Plugin:      plugin,
+			Goal:        goal,
+			Description: "RESOURCES",
+		}
+
+	// COMPILE (codice main)
+	case (plugin == "maven-compiler-plugin" || plugin == "compiler") && goal == "compile":
+		return &MavenPhase{
+			Name:        "COMPILE",
+			Plugin:      plugin,
+			Goal:        goal,
+			Description: "COMPILE",
+		}
+
+	// TEST-RESOURCES
+	case (plugin == "maven-resources-plugin" || plugin == "resources") && goal == "testResources":
+		return &MavenPhase{
+			Name:        "TEST-RESOURCES",
+			Plugin:      plugin,
+			Goal:        goal,
+			Description: "TEST-RESOURCES",
+		}
+
+	// TEST-COMPILE (codice test)
+	case (plugin == "maven-compiler-plugin" || plugin == "compiler") && goal == "testCompile":
+		return &MavenPhase{
+			Name:        "TEST-COMPILE",
+			Plugin:      plugin,
+			Goal:        goal,
+			Description: "TEST-COMPILE",
+		}
+
+	// TEST (esecuzione test)
+	case (plugin == "maven-surefire-plugin" || plugin == "surefire") && goal == "test":
+		return &MavenPhase{
+			Name:        "TEST",
+			Plugin:      plugin,
+			Goal:        goal,
+			Description: "TEST",
+		}
+
+	case (plugin == "maven-failsafe-plugin" || plugin == "failsafe") && goal == "integration-test":
+		return &MavenPhase{
+			Name:        "INTEGRATION-TEST",
+			Plugin:      plugin,
+			Goal:        goal,
+			Description: "INTEGRATION-TEST",
+		}
+
+	// PACKAGE
+	case (plugin == "maven-jar-plugin" || plugin == "jar") && goal == "jar":
+		return &MavenPhase{
+			Name:        "PACKAGE",
+			Plugin:      plugin,
+			Goal:        goal,
+			Description: "PACKAGE (JAR)",
+		}
+
+	case (plugin == "maven-war-plugin" || plugin == "war") && goal == "war":
+		return &MavenPhase{
+			Name:        "PACKAGE",
+			Plugin:      plugin,
+			Goal:        goal,
+			Description: "PACKAGE (WAR)",
+		}
+
+	// SPRING BOOT REPACKAGE
+	case (plugin == "spring-boot-maven-plugin" || plugin == "spring-boot") && goal == "repackage":
+		return &MavenPhase{
+			Name:        "REPACKAGE",
+			Plugin:      plugin,
+			Goal:        goal,
+			Description: "REPACKAGE (Spring Boot)",
+		}
+
+	// INSTALL
+	case (plugin == "maven-install-plugin" || plugin == "install") && goal == "install":
+		return &MavenPhase{
+			Name:        "INSTALL",
+			Plugin:      plugin,
+			Goal:        goal,
+			Description: "INSTALL",
+		}
+
+	// DEPLOY
+	case (plugin == "maven-deploy-plugin" || plugin == "deploy") && goal == "deploy":
+		return &MavenPhase{
+			Name:        "DEPLOY",
+			Plugin:      plugin,
+			Goal:        goal,
+			Description: "DEPLOY",
+		}
+
+	default:
+		// Fase non riconosciuta
+		return nil
 	}
 }

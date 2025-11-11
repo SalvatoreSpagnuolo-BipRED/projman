@@ -120,7 +120,7 @@ Esempi:
 
 // buildMavenArgs costruisce gli argomenti per il comando Maven
 func buildMavenArgs(pomPath string, includeTests bool) []string {
-	args := []string{"-f", pomPath, "install"}
+	args := []string{"-B", "-f", pomPath, "install"}
 	if !includeTests {
 		args = append(args, "-DskipTests=true")
 	}
