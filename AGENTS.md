@@ -5,6 +5,7 @@ Guida tecnica per AI agents che lavorano su **Projman**, un tool CLI Go per la g
 ## ⚠️ REGOLE OPERATIVE
 
 **Esegui SOLO quanto richiesto:**
+
 1. ⛔ NO funzionalità extra non richieste
 2. ⛔ NO file di report .md (REFACTORING_SUMMARY, CHANGELOG, ecc.)
 3. ⛔ NO over-engineering - mantieni la semplicità
@@ -18,6 +19,7 @@ projman/
 ├── main.go                             # Entry point
 ├── cmd/                                # Comandi CLI (Cobra)
 │   ├── root.go, init.go, help.go       # Comandi base
+│   ├── list.go, use.go, delete.go      # Gestione profili
 │   ├── git/                            # Sottocomandi Git
 │   │   ├── git.go                      # Parent command
 │   │   └── update.go                   # Git pull/merge intelligente
@@ -25,7 +27,7 @@ projman/
 │       ├── mvn.go                      # Parent command
 │       └── install.go                  # Maven install con dep sorting
 └── internal/                           # Package interni
-    ├── config/config.go                # Gestione configurazione JSON
+    ├── config/config.go                # Gestione configurazione JSON multi-profilo
     ├── project/project.go              # Discovery progetti Maven
     ├── graph/graph.go                  # Ordinamento topologico (Kahn)
     ├── buildsystem/buildsystem.go      # Interfacce comuni
@@ -41,15 +43,36 @@ projman/
 
 ## 🔑 Funzionalità Chiave
 
-### Configurazione
+### Configurazione Multi-Profilo
+
 - **Path**: `~/.config/projman/projman_config.json` (Unix) | `%APPDATA%/projman/projman_config.json` (Win)
-- **Formato**: `{"root_of_projects": "/path", "selected_projects": ["proj-a", "proj-b"]}`
+- **Formato**:
+
+```json
+{
+  "current_profile": "default",
+  "profiles": {
+    "default": {
+      "root_of_projects": "/path",
+      "selected_projects": ["proj-a", "proj-b"]
+    }
+  }
+}
+```
+
+- **Comandi**:
+  - `list`: elenca profili disponibili
+  - `use <nome>`: imposta profilo corrente
+  - `delete <nome>`: elimina profilo
+  - `init <nome-profilo> <path>`: crea/aggiorna profilo
 
 ### Discovery Progetti
+
 - Scansiona directory per trovare `pom.xml`
 - Selezione interattiva con `pterm.DefaultInteractiveMultiselect`
 
 ### Git Update (`cmd/git/update.go`)
+
 - **Stash automatico** → operazioni → ripristino stash
 - **Branch intelligenti**:
   - `develop`: `git pull origin develop`
@@ -57,6 +80,7 @@ projman/
   - Altri: `git fetch + merge origin/develop`
 
 ### Maven Install (`cmd/mvn/install.go`)
+
 - Analisi dipendenze tra progetti (parsing `pom.xml`)
 - **Ordinamento topologico** con algoritmo di Kahn (`internal/graph`)
 - Rilevamento cicli e sottomoduli
@@ -70,7 +94,29 @@ projman/
 
 ## 🛠️ Task Comuni
 
-### Aggiungere Comando Git/Maven
+### Aggiungere Comando di Primo Livello
+
+```go
+// cmd/nuovo.go
+package cmd
+
+import "github.com/spf13/cobra"
+
+var nuovoCmd = &cobra.Command{
+    Use:   "nuovo",
+    Short: "Descrizione",
+    Run: func(cmd *cobra.Command, args []string) {
+        // Implementazione
+    },
+}
+
+func init() {
+    RootCmd.AddCommand(nuovoCmd)
+}
+```
+
+### Aggiungere Sottocomando Git/Maven
+
 ```go
 // cmd/git/nuovo.go o cmd/mvn/nuovo.go
 package git  // o mvn
@@ -93,6 +139,7 @@ func init() {
 ### Eseguire Comandi
 
 **Comandi generici:**
+
 ```go
 import "github.com/SalvatoreSpagnuolo-BipRED/projman/internal/exec"
 
@@ -107,6 +154,7 @@ output, err := exec.RunWithOutput("git", "rev-parse", "HEAD")
 ```
 
 **Comandi Maven con parsing output:**
+
 ```go
 import "github.com/SalvatoreSpagnuolo-BipRED/projman/internal/maven/executor"
 
@@ -118,6 +166,7 @@ err := mavenExec.Run()
 ## 📝 Convenzioni
 
 ### Codice
+
 - **Formatting**: `gofmt`
 - **Naming**: camelCase (var), PascalCase (const/export)
 - **Commenti**: obbligatori per export, iniziano con nome elemento
@@ -125,6 +174,7 @@ err := mavenExec.Run()
 - **Errori**: wrapping con `fmt.Errorf("contesto: %w", err)`
 
 ### Output Pterm
+
 ```go
 pterm.Info.Println()      // Informazioni
 pterm.Success.Println()   // Operazione riuscita
@@ -145,11 +195,12 @@ pterm.DefaultHeader.Println()  // Intestazioni
 
 ## 🐛 Troubleshooting
 
-| Problema | Soluzione |
-|----------|-----------|
-| Config non trovata | Esegui `projman init <dir>` |
-| Git fallisce | Verifica Git nel PATH e repo inizializzati |
-| Maven fallisce | Verifica Maven nel PATH e connessione internet |
+| Problema               | Soluzione                                               |
+| ---------------------- | ------------------------------------------------------- |
+| Config non trovata     | Esegui `projman init <nome-profilo> <dir>`              |
+| Nessun profilo attivo  | Esegui `projman use <nome-profilo>`                     |
+| Git fallisce           | Verifica Git nel PATH e repo inizializzati              |
+| Maven fallisce         | Verifica Maven nel PATH e connessione internet          |
 | Comando non registrato | Importa subpackage in `cmd/root.go` e verifica `init()` |
 
 ## 📚 Reference
@@ -161,4 +212,3 @@ pterm.DefaultHeader.Println()  // Intestazioni
 ---
 
 **v1.1.0** | Novembre 2025 | Salvatore Spagnuolo
-

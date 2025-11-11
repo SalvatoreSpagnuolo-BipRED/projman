@@ -1,8 +1,6 @@
 package cmd
 
 import (
-	"fmt"
-
 	"github.com/SalvatoreSpagnuolo-BipRED/projman/internal/config"
 	"github.com/SalvatoreSpagnuolo-BipRED/projman/internal/project"
 	"github.com/pterm/pterm"
@@ -11,29 +9,27 @@ import (
 
 // initCmd rappresenta il comando init per inizializzare la configurazione di projman
 var initCmd = &cobra.Command{
-	Use:   "init <directory_root_progetti>",
+	Use:   "init <nome-profilo> <directory_root_progetti>",
 	Short: "Seleziona i progetti da includere nella gestione",
 	Long: `Inizializza la configurazione di projman selezionando i progetti da gestire.
-Richiede il percorso della directory root contenente i progetti Maven.
+Richiede il nome del profilo e il percorso della directory root contenente i progetti Maven.
 Permette di selezionare interattivamente quali progetti includere nella gestione.`,
+	Args: cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		// Valida che sia stata fornita la directory root
-		if len(args) < 1 {
-			pterm.Error.Println("Devi specificare la directory root dei progetti")
-			pterm.Info.Println("Uso: projman init <directory_root_progetti>")
-			return fmt.Errorf("directory root non specificata")
-		}
+		profileName := args[0]
+		directory := args[1]
 
 		// Valida l'esistenza e validità della directory
-		root, err := config.CheckAndGetDirectory(args[0])
+		root, err := config.CheckAndGetDirectory(directory)
 		if err != nil {
-			pterm.Error.Println("La directory specificata non è valida:", args[0])
+			pterm.Error.Println("La directory specificata non è valida:", directory)
 			return err
 		}
 
 		// Scansiona la directory alla ricerca di progetti Maven
 		pterm.Info.Println("Scansione dei progetti Maven in corso...")
-		pterm.Info.Println("Directory:", root)
+		pterm.Info.Printf("Profilo: %s\n", profileName)
+		pterm.Info.Printf("Directory: %s\n", root)
 
 		projs, err := project.Discover(root)
 		if err != nil {
@@ -67,18 +63,18 @@ Permette di selezionare interattivamente quali progetti includere nella gestione
 			return nil
 		}
 
-		// Salva la configurazione nel file JSON
+		// Salva la configurazione nel profilo specificato
 		cfg := config.Config{
 			SelectedProjects: selectedNames,
 			RootOfProjects:   root,
 		}
 
-		if err := config.SaveSettings(cfg); err != nil {
+		if err := config.SaveProfile(profileName, cfg); err != nil {
 			pterm.Error.Println("Errore durante il salvataggio della configurazione:", err)
 			return err
 		}
 
-		pterm.Success.Printf("Configurazione completata con %d progetti selezionati\n", len(selectedNames))
+		pterm.Success.Printf("Profilo '%s' configurato con %d progetti selezionati\n", profileName, len(selectedNames))
 		return nil
 	},
 }
