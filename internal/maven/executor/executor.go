@@ -15,9 +15,10 @@ import (
 // Pattern per il matching dell'output Maven
 var (
 	// Pattern per rilevare l'esecuzione di un plugin Maven
-	// Esempio: [INFO] --- compiler:3.14.1:compile (default-compile) @ project-name ---
-	// Esempio: [INFO] --- maven-compiler-plugin:3.8.1:compile (default-compile) @ project-name ---
-	pluginPattern = regexp.MustCompile(`\[INFO] --- ([a-z-]+):.*?:([a-z-]+).*? ---`)
+	// Esempio: [INFO] --- compiler:3.14.1:compile (default-compile) @ demo-1 ---
+	// Esempio: [INFO] --- spring-boot:3.5.7:repackage (repackage) @ demo-1 ---
+	// Cattura: plugin, goal, module (ignoriamo la versione)
+	pluginPattern = regexp.MustCompile(`\[INFO] --- ([a-z-]+):([^:]+):([a-zA-Z]+).*?@\s+(\S+)\s+---`)
 
 	// Pattern per i test in esecuzione
 	// Esempio: [INFO] Running com.example.MyTest
@@ -36,6 +37,7 @@ type MavenPhase struct {
 	Name        string // Nome leggibile della fase (es: "COMPILE")
 	Plugin      string // Nome del plugin Maven
 	Goal        string // Goal del plugin
+	Module      string // Nome del modulo Maven
 	Description string // Descrizione breve per lo spinner
 }
 
@@ -115,7 +117,8 @@ func (mavenExec *MavenExecutor) processOutputLine(line string) {
 
 	// 1. Rileva inizio nuova fase Maven (plugin execution)
 	if matches := pluginPattern.FindStringSubmatch(line); matches != nil {
-		mavenExec.handlePhaseStart(matches[1], matches[2])
+		// matches[1] = plugin, matches[2] = version (ignorata), matches[3] = goal, matches[4] = module
+		mavenExec.handlePhaseStart(matches[1], matches[2], matches[3], matches[4])
 		return
 	}
 
@@ -142,9 +145,9 @@ func (mavenExec *MavenExecutor) processOutputLine(line string) {
 }
 
 // handlePhaseStart gestisce l'inizio di una nuova fase Maven
-func (mavenExec *MavenExecutor) handlePhaseStart(plugin, goal string) {
+func (mavenExec *MavenExecutor) handlePhaseStart(plugin, version, goal, module string) {
 	// Mappa plugin+goal a fase leggibile
-	phase := mavenExec.identifyPhase(plugin, goal)
+	phase := mavenExec.identifyPhase(plugin, version, goal, module)
 	if phase == nil {
 		return // Fase non riconosciuta, ignora
 	}
@@ -204,9 +207,10 @@ func (mavenExec *MavenExecutor) handleTestResults(runStr, failStr, errStr, skipS
 }
 
 // identifyPhase identifica la fase Maven dal plugin e goal
-func (mavenExec *MavenExecutor) identifyPhase(plugin, goal string) *MavenPhase {
+func (mavenExec *MavenExecutor) identifyPhase(plugin, _, goal, module string) *MavenPhase {
 	// Mappa (plugin, goal) -> fase
 	// Supporta sia nomi brevi (compiler) che completi (maven-compiler-plugin)
+
 	switch {
 	// CLEAN
 	case (plugin == "maven-clean-plugin" || plugin == "clean") && goal == "clean":
@@ -214,7 +218,8 @@ func (mavenExec *MavenExecutor) identifyPhase(plugin, goal string) *MavenPhase {
 			Name:        "CLEAN",
 			Plugin:      plugin,
 			Goal:        goal,
-			Description: "CLEAN",
+			Module:      module,
+			Description: fmt.Sprintf("CLEAN @ %s", module),
 		}
 
 	// RESOURCES (copia risorse)
@@ -223,7 +228,8 @@ func (mavenExec *MavenExecutor) identifyPhase(plugin, goal string) *MavenPhase {
 			Name:        "RESOURCES",
 			Plugin:      plugin,
 			Goal:        goal,
-			Description: "RESOURCES",
+			Module:      module,
+			Description: fmt.Sprintf("RESOURCES @ %s", module),
 		}
 
 	// COMPILE (codice main)
@@ -232,7 +238,8 @@ func (mavenExec *MavenExecutor) identifyPhase(plugin, goal string) *MavenPhase {
 			Name:        "COMPILE",
 			Plugin:      plugin,
 			Goal:        goal,
-			Description: "COMPILE",
+			Module:      module,
+			Description: fmt.Sprintf("COMPILE @ %s", module),
 		}
 
 	// TEST-RESOURCES
@@ -241,7 +248,8 @@ func (mavenExec *MavenExecutor) identifyPhase(plugin, goal string) *MavenPhase {
 			Name:        "TEST-RESOURCES",
 			Plugin:      plugin,
 			Goal:        goal,
-			Description: "TEST-RESOURCES",
+			Module:      module,
+			Description: fmt.Sprintf("TEST-RESOURCES @ %s", module),
 		}
 
 	// TEST-COMPILE (codice test)
@@ -250,7 +258,8 @@ func (mavenExec *MavenExecutor) identifyPhase(plugin, goal string) *MavenPhase {
 			Name:        "TEST-COMPILE",
 			Plugin:      plugin,
 			Goal:        goal,
-			Description: "TEST-COMPILE",
+			Module:      module,
+			Description: fmt.Sprintf("TEST-COMPILE @ %s", module),
 		}
 
 	// TEST (esecuzione test)
@@ -259,7 +268,8 @@ func (mavenExec *MavenExecutor) identifyPhase(plugin, goal string) *MavenPhase {
 			Name:        "TEST",
 			Plugin:      plugin,
 			Goal:        goal,
-			Description: "TEST",
+			Module:      module,
+			Description: fmt.Sprintf("TEST @ %s", module),
 		}
 
 	case (plugin == "maven-failsafe-plugin" || plugin == "failsafe") && goal == "integration-test":
@@ -267,7 +277,8 @@ func (mavenExec *MavenExecutor) identifyPhase(plugin, goal string) *MavenPhase {
 			Name:        "INTEGRATION-TEST",
 			Plugin:      plugin,
 			Goal:        goal,
-			Description: "INTEGRATION-TEST",
+			Module:      module,
+			Description: fmt.Sprintf("INTEGRATION-TEST @ %s", module),
 		}
 
 	// PACKAGE
@@ -276,7 +287,8 @@ func (mavenExec *MavenExecutor) identifyPhase(plugin, goal string) *MavenPhase {
 			Name:        "PACKAGE",
 			Plugin:      plugin,
 			Goal:        goal,
-			Description: "PACKAGE (JAR)",
+			Module:      module,
+			Description: fmt.Sprintf("PACKAGE @ %s", module),
 		}
 
 	case (plugin == "maven-war-plugin" || plugin == "war") && goal == "war":
@@ -284,7 +296,8 @@ func (mavenExec *MavenExecutor) identifyPhase(plugin, goal string) *MavenPhase {
 			Name:        "PACKAGE",
 			Plugin:      plugin,
 			Goal:        goal,
-			Description: "PACKAGE (WAR)",
+			Module:      module,
+			Description: fmt.Sprintf("PACKAGE @ %s", module),
 		}
 
 	// SPRING BOOT REPACKAGE
@@ -293,7 +306,8 @@ func (mavenExec *MavenExecutor) identifyPhase(plugin, goal string) *MavenPhase {
 			Name:        "REPACKAGE",
 			Plugin:      plugin,
 			Goal:        goal,
-			Description: "REPACKAGE (Spring Boot)",
+			Module:      module,
+			Description: fmt.Sprintf("REPACKAGE @ %s", module),
 		}
 
 	// INSTALL
@@ -302,7 +316,8 @@ func (mavenExec *MavenExecutor) identifyPhase(plugin, goal string) *MavenPhase {
 			Name:        "INSTALL",
 			Plugin:      plugin,
 			Goal:        goal,
-			Description: "INSTALL",
+			Module:      module,
+			Description: fmt.Sprintf("INSTALL @ %s", module),
 		}
 
 	// DEPLOY
@@ -311,7 +326,8 @@ func (mavenExec *MavenExecutor) identifyPhase(plugin, goal string) *MavenPhase {
 			Name:        "DEPLOY",
 			Plugin:      plugin,
 			Goal:        goal,
-			Description: "DEPLOY",
+			Module:      module,
+			Description: fmt.Sprintf("DEPLOY @ %s", module),
 		}
 
 	default:

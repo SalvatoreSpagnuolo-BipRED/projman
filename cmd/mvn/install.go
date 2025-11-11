@@ -1,6 +1,8 @@
 package mvn
 
 import (
+	"bufio"
+	"os"
 	"path/filepath"
 
 	"github.com/SalvatoreSpagnuolo-BipRED/projman/internal/config"
@@ -103,6 +105,9 @@ Esempi:
 				pterm.Error.Printf("✗ Progetto %s: errore durante l'installazione\n", projectName)
 				pterm.Error.Println("  ", err.Error())
 				failureCount++
+
+				// Attendi input dall'utente prima di continuare
+				waitForUserInput(projectName)
 			} else {
 				successCount++
 			}
@@ -144,6 +149,20 @@ func printInstallSummary(successCount, failureCount int) {
 	} else {
 		pterm.Success.Println("Tutte le installazioni completate con successo!")
 	}
+}
+
+// waitForUserInput blocca l'esecuzione e attende che l'utente prema Invio
+func waitForUserInput(projectName string) {
+	pterm.Println()
+	pterm.Warning.Printf("⏸  Esecuzione in pausa per il progetto: %s\n", projectName)
+	pterm.Info.Println("Risolvi manualmente il problema, poi premi INVIO per continuare con il progetto successivo...")
+
+	// Attendi input dall'utente
+	reader := bufio.NewReader(os.Stdin)
+	_, _ = reader.ReadString('\n')
+
+	pterm.Success.Println("▶  Ripresa esecuzione...")
+	pterm.Println()
 }
 
 func init() {
