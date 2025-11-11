@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SalvatoreSpagnuolo-BipRED/projman/internal/exec/scrollable"
+	"github.com/pterm/pterm"
 )
 
 // Run esegue un comando esterno mostrando l'output in tempo reale.
@@ -56,75 +56,72 @@ func RunWithOutput(name string, args ...string) (string, error) {
 	return strings.TrimSpace(string(output)), nil
 }
 
-// RunWithScrollableOutput esegue un comando esterno mostrando l'output in un'area scrollabile.
-// L'area ha un'altezza fissa definita da maxLines, e l'output scorre verso il basso
-// man mano che vengono ricevute nuove righe, con un indicatore di progresso animato.
-func RunWithScrollableOutput(name string, args []string, maxLines int) error {
-	// Setup iniziale del comando
-	executor := scrollable.NewExecutor(name, args)
-	executor.PrintCommandInfo()
-	executor.PrintSectionHeader(maxLines)
+// RunWithSpinner esegue un comando esterno mostrando uno spinner semplice con timer.
+// Lo spinner mostra solo il tempo trascorso, senza log di output (evita artefatti su terminali lenti).
+// Il parametro maxLogLines viene ignorato ed è mantenuto solo per retro-compatibilità.
+func RunWithSpinner(name string, args []string, _ int) error {
+	// Mostra il comando che sta per essere eseguito
+	pterm.Info.Printf("$ %s %s\n", name, strings.Join(args, " "))
 
-	// Prepara il comando con le pipe
-	if err := executor.SetupCommand(); err != nil {
-		return err
-	}
+	// Crea lo spinner
+	spinner, _ := pterm.DefaultSpinner.Start("Esecuzione in corso...")
 
-	// Ottieni il comando preparato
-	cmd := executor.GetCommand()
-
-	// Ottieni le pipe per stdout e stderr
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return fmt.Errorf("errore creazione stdout pipe: %w", err)
-	}
-
-	stderr, err := cmd.StderrPipe()
-	if err != nil {
-		return fmt.Errorf("errore creazione stderr pipe: %w", err)
-	}
-
-	// Passa le variabili d'ambiente
+	// Prepara il comando
+	cmd := exec.Command(name, args...)
 	cmd.Env = os.Environ()
 
+	// Redireziona stdout e stderr a /dev/null (o equivalente) per evitare output
+	cmd.Stdout = nil
+	cmd.Stderr = nil
+
 	// Avvia il comando
-	if err := executor.Start(); err != nil {
-		return err
-	}
-
-	// Inizializza i componenti per la gestione dell'output
 	startTime := time.Now()
-	area, err := scrollable.NewArea(maxLines)
-	if err != nil {
-		return err
-	}
-	defer area.Stop()
-
-	buffer := scrollable.NewBuffer(maxLines)
-
-	// Funzione di aggiornamento dell'area
-	updateArea := func() {
-		area.Update(buffer.GetLines())
+	if err := cmd.Start(); err != nil {
+		spinner.Fail("Errore avvio comando")
+		return fmt.Errorf("errore avvio comando '%s %s': %w", name, strings.Join(args, " "), err)
 	}
 
-	// Avvia l'aggiornamento periodico
-	updater := scrollable.NewUpdater(500*time.Millisecond, updateArea)
-	updater.Start()
-	defer updater.Stop()
+	// Goroutine per aggiornare lo spinner con il timer
+	stopUpdater := make(chan bool)
+	go func() {
+		ticker := time.NewTicker(1 * time.Second)
+		defer ticker.Stop()
 
-	// Gestisci lo streaming dell'output
-	streamer := scrollable.NewStreamer(buffer, updateArea)
-	go streamer.StreamOutput(stdout)
-	go streamer.StreamOutput(stderr)
-	streamer.WaitForCompletion()
+		for {
+			select {
+			case <-ticker.C:
+				elapsed := time.Since(startTime)
+				minutes := int(elapsed.Minutes())
+				seconds := int(elapsed.Seconds()) % 60
+				spinner.UpdateText(fmt.Sprintf("Esecuzione in corso... (%dm %ds)", minutes, seconds))
+			case <-stopUpdater:
+				return
+			}
+		}
+	}()
 
 	// Attendi il completamento del comando
-	cmdErr := executor.Wait()
+	cmdErr := cmd.Wait()
 
-	// Stampa il messaggio di completamento se successo
-	if cmdErr == nil {
-		executor.PrintCompletionMessage(startTime)
+	// Ferma l'updater
+	close(stopUpdater)
+
+	// Mostra il risultato
+	elapsed := time.Since(startTime)
+	minutes := int(elapsed.Minutes())
+	seconds := int(elapsed.Seconds()) % 60
+
+	if cmdErr != nil {
+		spinner.Fail(fmt.Sprintf("Comando fallito dopo %dm %ds", minutes, seconds))
+		return fmt.Errorf("comando fallito '%s %s': %w", name, strings.Join(args, " "), cmdErr)
 	}
 
-	return cmdErr
+	spinner.Success(fmt.Sprintf("Comando completato in %dm %ds", minutes, seconds))
+	return nil
+}
+
+// RunWithScrollableOutput è un alias per RunWithSpinner per retro-compatibilità.
+// Il parametro maxLines specifica quante righe di log mostrare (usa 0 per nessun log).
+func RunWithScrollableOutput(name string, args []string, maxLines int) error {
+	return RunWithSpinner(name, args, maxLines)
 }

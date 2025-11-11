@@ -32,9 +32,7 @@ projman/
     ├── maven/                          # Parser Maven
     │   ├── parser.go                   # Parsing pom.xml
     │   └── compat.go                   # Compatibilità API
-    ├── exec/                           # Esecuzione comandi
-    │   ├── exec.go                     # Wrapper os/exec
-    │   └── scrollable/                 # Output scrollabile (5 file)
+    ├── exec/exec.go                    # Esecuzione comandi (Run, RunWithSpinner)
     └── ui/multiselect.go               # Selezione interattiva
 ```
 
@@ -61,7 +59,7 @@ projman/
 - Analisi dipendenze tra progetti (parsing `pom.xml`)
 - **Ordinamento topologico** con algoritmo di Kahn (`internal/graph`)
 - Rilevamento cicli e sottomoduli
-- Output scrollabile (15 righe fisse)
+- Output semplice con spinner e timer (nessun artefatto su terminali lenti)
 - Flag `--tests/-t` (default: test disabilitati)
 
 ## 🛠️ Task Comuni
@@ -86,15 +84,18 @@ func init() {
 }
 ```
 
-### Usare Output Scrollabile
+### Eseguire Comandi Lunghi
 ```go
 import "github.com/SalvatoreSpagnuolo-BipRED/projman/internal/exec"
 
-// Scrollabile (15 righe)
-exec.RunWithScrollableOutput("mvn", []string{"install"}, 15)
+// Con spinner e timer (senza artefatti)
+exec.RunWithSpinner("mvn", []string{"install"}, 0)
 
-// Normale
+// Output normale in tempo reale
 exec.Run("git", "status")
+
+// Catturare output come stringa
+output, err := exec.RunWithOutput("git", "rev-parse", "HEAD")
 ```
 
 ## 📝 Convenzioni
