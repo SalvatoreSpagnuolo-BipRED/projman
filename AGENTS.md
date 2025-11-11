@@ -41,7 +41,13 @@ projman/
 │   │   └── dependency.go     # Parsing pom.xml e ordinamento topologico
 │   │
 │   ├── exec/                 # Utility per esecuzione comandi
-│   │   └── exec.go           # Wrapper per os/exec
+│   │   ├── exec.go           # Wrapper per os/exec (Run, RunWithOutput, RunWithScrollableOutput)
+│   │   └── scrollable/       # Componenti per output scrollabile
+│   │       ├── area.go       # Area scrollabile con spinner e tempo
+│   │       ├── buffer.go     # Buffer circolare thread-safe per righe
+│   │       ├── executor.go   # Gestione esecuzione comandi
+│   │       ├── streamer.go   # Streaming stdout/stderr in tempo reale
+│   │       └── updater.go    # Aggiornamento periodico dell'area
 │   │
 │   └── ui/                   # Utility per UI interattiva
 │       └── multiselect.go    # Selezione multipla con tabelle
@@ -100,6 +106,9 @@ projman/
 - **Analisi dipendenze**: parse di `pom.xml` per identificare `groupId:artifactId` e dipendenze
 - **Rilevamento sottomoduli**: considera anche le dipendenze nei sottomoduli Maven
 - **Rilevamento cicli**: identifica dipendenze circolari e notifica l'errore
+- **Output scrollabile**: mostra l'output Maven in un'area di 15 righe con altezza fissa
+- **Indicatore progresso**: spinner animato e tempo di esecuzione incorporati nell'area (aggiornamento ogni 500ms)
+- **Buffer circolare**: mantiene solo le ultime N righe visibili, scrollando automaticamente
 - Flag `--tests/-t` per abilitare/disabilitare test
 - Default: test disabilitati (`-DskipTests=true`)
 - Report finale con statistiche successi/fallimenti
@@ -177,6 +186,28 @@ Modifica `internal/project/project.go`:
 - `Filter()`: modifica criteri di filtraggio
 - `Names()`: cambia estrazione nomi progetti
 - `isMavenProject()`: modifica criteri di identificazione Maven
+
+### Usare l'output scrollabile per comandi esterni
+
+Per eseguire comandi esterni con output che scrolla in un'area fissa:
+
+```go
+import "github.com/SalvatoreSpagnuolo-BipRED/projman/internal/exec"
+
+// Output scrollabile in 15 righe (ideale per Maven, Git, ecc.)
+if err := exec.RunWithScrollableOutput("mvn", []string{"clean", "install"}, 15); err != nil {
+    pterm.Error.Println("Errore:", err)
+}
+
+// Output normale (stampa tutto in tempo reale)
+if err := exec.Run("git", "status"); err != nil {
+    pterm.Error.Println("Errore:", err)
+}
+```
+
+L'area scrollabile mantiene lo spinner e altri elementi visibili, migliorando l'UX durante operazioni lunghe.
+
+**Nota**: I componenti per l'output scrollabile sono organizzati nel subpackage `internal/exec/scrollable/` per una migliore modularità e separazione delle responsabilità.
 
 ## 📝 Convenzioni di Codice
 

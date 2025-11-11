@@ -5,6 +5,9 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"time"
+
+	"github.com/SalvatoreSpagnuolo-BipRED/projman/internal/exec/scrollable"
 )
 
 // Run esegue un comando esterno mostrando l'output in tempo reale.
@@ -51,4 +54,77 @@ func RunWithOutput(name string, args ...string) (string, error) {
 
 	// Restituisce l'output come stringa, rimuovendo spazi bianchi
 	return strings.TrimSpace(string(output)), nil
+}
+
+// RunWithScrollableOutput esegue un comando esterno mostrando l'output in un'area scrollabile.
+// L'area ha un'altezza fissa definita da maxLines, e l'output scorre verso il basso
+// man mano che vengono ricevute nuove righe, con un indicatore di progresso animato.
+func RunWithScrollableOutput(name string, args []string, maxLines int) error {
+	// Setup iniziale del comando
+	executor := scrollable.NewExecutor(name, args)
+	executor.PrintCommandInfo()
+	executor.PrintSectionHeader(maxLines)
+
+	// Prepara il comando con le pipe
+	if err := executor.SetupCommand(); err != nil {
+		return err
+	}
+
+	// Ottieni il comando preparato
+	cmd := executor.GetCommand()
+
+	// Ottieni le pipe per stdout e stderr
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return fmt.Errorf("errore creazione stdout pipe: %w", err)
+	}
+
+	stderr, err := cmd.StderrPipe()
+	if err != nil {
+		return fmt.Errorf("errore creazione stderr pipe: %w", err)
+	}
+
+	// Passa le variabili d'ambiente
+	cmd.Env = os.Environ()
+
+	// Avvia il comando
+	if err := executor.Start(); err != nil {
+		return err
+	}
+
+	// Inizializza i componenti per la gestione dell'output
+	startTime := time.Now()
+	area, err := scrollable.NewArea(maxLines)
+	if err != nil {
+		return err
+	}
+	defer area.Stop()
+
+	buffer := scrollable.NewBuffer(maxLines)
+
+	// Funzione di aggiornamento dell'area
+	updateArea := func() {
+		area.Update(buffer.GetLines())
+	}
+
+	// Avvia l'aggiornamento periodico
+	updater := scrollable.NewUpdater(500*time.Millisecond, updateArea)
+	updater.Start()
+	defer updater.Stop()
+
+	// Gestisci lo streaming dell'output
+	streamer := scrollable.NewStreamer(buffer, updateArea)
+	go streamer.StreamOutput(stdout)
+	go streamer.StreamOutput(stderr)
+	streamer.WaitForCompletion()
+
+	// Attendi il completamento del comando
+	cmdErr := executor.Wait()
+
+	// Stampa il messaggio di completamento se successo
+	if cmdErr == nil {
+		executor.PrintCompletionMessage(startTime)
+	}
+
+	return cmdErr
 }

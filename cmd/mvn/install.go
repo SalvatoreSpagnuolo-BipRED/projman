@@ -1,7 +1,6 @@
 package mvn
 
 import (
-	"fmt"
 	"path/filepath"
 
 	"github.com/SalvatoreSpagnuolo-BipRED/projman/internal/config"
@@ -88,10 +87,9 @@ Esempi:
 		failureCount := 0
 
 		// Esegui mvn install per ogni progetto nell'ordine corretto
-		spinner, _ = pterm.DefaultSpinner.Start("Inizializzazione...")
-
-		for _, projectName := range sortedProjects {
-			spinner.UpdateText(fmt.Sprintf("Installazione progetto: %s", projectName))
+		for i, projectName := range sortedProjects {
+			// Mostra un'intestazione per il progetto corrente
+			pterm.DefaultHeader.WithFullWidth().Printf("Progetto %d/%d: %s", i+1, len(sortedProjects), projectName)
 
 			// Costruisci il percorso del pom.xml
 			pomPath := filepath.Join(cfg.RootOfProjects, projectName, "pom.xml")
@@ -99,8 +97,8 @@ Esempi:
 			// Prepara gli argomenti per Maven
 			args := buildMavenArgs(pomPath, runTests)
 
-			// Esegui il comando Maven
-			if err := exec.Run("mvn", args...); err != nil {
+			// Esegui il comando Maven con output scrollabile (15 righe)
+			if err := exec.RunWithScrollableOutput("mvn", args, 15); err != nil {
 				pterm.Error.Printf("✗ Progetto %s: errore durante l'installazione\n", projectName)
 				pterm.Error.Println("  ", err.Error())
 				failureCount++
@@ -108,9 +106,12 @@ Esempi:
 				pterm.Success.Printf("✓ Progetto %s: installazione completata\n", projectName)
 				successCount++
 			}
-		}
 
-		_ = spinner.Stop()
+			// Aggiungi una riga vuota tra i progetti (tranne dopo l'ultimo)
+			if i < len(sortedProjects)-1 {
+				pterm.Println()
+			}
+		}
 
 		// Mostra il riepilogo finale
 		printInstallSummary(successCount, failureCount)
