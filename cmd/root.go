@@ -1,48 +1,43 @@
-/*
-Copyright © 2025 NAME HERE <EMAIL ADDRESS>
-*/
 package cmd
 
 import (
 	"fmt"
 	"os"
 
+	"github.com/SalvatoreSpagnuolo-BipRED/projman/cmd/git"
+	"github.com/SalvatoreSpagnuolo-BipRED/projman/cmd/mvn"
 	"github.com/spf13/cobra"
 )
 
-// rootCmd represents the base command when called without any subcommands
-var rootCmd = &cobra.Command{
-	Use:   "projman",
-	Short: "A brief description of your application",
-	// Uncomment the following line if your bare application
-	// has an action associated with it:
-	Run: func(cmd *cobra.Command, args []string) {
-		toggle, _ := cmd.Flags().GetBool("toggle")
+// Version viene impostata durante la build tramite ldflags
+var Version = "dev"
 
-		fmt.Println("Hello World")
-		if toggle {
-			fmt.Println("Toggle is true")
-		}
+// RootCmd rappresenta il comando base quando viene chiamato senza sottocomandi
+var RootCmd = &cobra.Command{
+	Use:     "projman",
+	Short:   "Gestione multipla di progetti Git e Maven",
+	Version: Version,
+	Long: `Projman è uno strumento da linea di comando che permette di gestire multiple repository Git 
+e progetti Maven contemporaneamente. Consente di selezionare un gruppo di progetti 
+e eseguire operazioni batch come git pull o mvn install su tutti i progetti selezionati.`,
+	Run: func(cmd *cobra.Command, args []string) {
+		// Mostra l'help quando viene chiamato senza sottocomandi
+		_ = cmd.Help()
 	},
 }
 
-// Execute adds all child commands to the root command and sets flags appropriately.
-// This is called by main.main(). It only needs to happen once to the rootCmd.
+// Execute esegue il comando root e gestisce l'exit code in caso di errore
 func Execute() {
-	err := rootCmd.Execute()
-	if err != nil {
+	if err := RootCmd.Execute(); err != nil {
 		os.Exit(1)
 	}
 }
 
 func init() {
-	// Here you will define your flags and configuration settings.
-	// Cobra supports persistent flags, which, if defined here,
-	// will be global for your application.
+	// Registra i comandi dei subpackage
+	RootCmd.AddCommand(git.GetGitCmd())
+	RootCmd.AddCommand(mvn.GetMvnCmd())
 
-	// rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.projman.yaml)")
-
-	// Cobra also supports local flags, which will only run
-	// when this action is called directly.
-	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	// Personalizza il template della versione
+	RootCmd.SetVersionTemplate(fmt.Sprintf("Projman v%s\n", Version))
 }
