@@ -1,0 +1,195 @@
+# Projman
+
+[![Go Version](https://img.shields.io/badge/Go-1.25.4-blue.svg)](https://golang.org)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![Version](https://img.shields.io/badge/Version-1.0.12-brightgreen.svg)](https://github.com/SalvatoreSpagnuolo-BipRED/projman/releases)
+
+**Projman** è un tool CLI scritto in Go per gestire in batch multipli progetti Maven/Git.
+
+## ✨ Caratteristiche
+
+- 🔍 Scansione automatica di progetti Maven (ricerca di `pom.xml`)
+- 🎯 Interfaccia interattiva per selezionare i progetti da gestire
+- 👥 Gestione multi-profilo per configurazioni diverse
+- 🔄 Comandi batch per Git con gestione intelligente dei branch (develop, deploy/\*, feature)
+- 🏗️ Comandi batch per Maven con ordinamento automatico delle dipendenze
+- 💾 Configurazione persistente (JSON)
+- 🎨 Output formattato con colori e tabelle interattive
+
+## 📋 Comandi
+
+### Gestione Profili
+
+#### `projman init <nome-profilo> <directory>`
+
+Crea un nuovo profilo di configurazione. Scansiona `<directory>` per trovare progetti Maven e permette di selezionarli interattivamente.
+
+```bash
+projman init prodotto-alfa ~/micro-servizi-alfa
+projman init prodotto-beta ~/ms-beta
+```
+
+#### `projman list`
+
+Visualizza tutti i profili configurati, indicando quello attualmente attivo.
+
+```bash
+projman list
+```
+
+#### `projman use <nome-profilo>`
+
+Imposta il profilo da utilizzare per tutti i comandi successivi.
+
+```bash
+projman use prodotto-alfa
+```
+
+#### `projman delete <nome-profilo>`
+
+Elimina un profilo esistente (con richiesta di conferma).
+
+```bash
+projman delete prodotto-beta
+```
+
+### Comandi Git
+
+#### `projman git update`
+
+Esegue operazioni Git su tutti i progetti selezionati:
+
+- Stash automatico delle modifiche
+- Cambio branch opzionale
+- Pull/Merge in base al tipo di branch:
+  - `develop`: `git pull origin develop`
+  - `deploy/*`: `git pull origin <branch-corrente>`
+  - Altri: `git fetch origin develop` + `git merge origin/develop`
+- Ripristino stash automatico
+
+### Comandi Maven
+
+#### `projman mvn install [--tests|-t]`
+
+Esegue `mvn install` con ordinamento automatico delle dipendenze.
+Di default i test sono disabilitati. Usa `--tests` o `-t` per abilitarli.
+
+```bash
+# Install senza test
+projman mvn install
+
+# Install con test
+projman mvn install --tests
+```
+
+## 📦 Requisiti
+
+- **Git** (nel PATH)
+- **Maven** (nel PATH)
+- **Go 1.25+** (solo per compilare da sorgente)
+
+## 🔧 Installazione
+
+### Binary precompilato (Consigliato)
+
+Scarica il binary dalla sezione [Releases](https://github.com/SalvatoreSpagnuolo-BipRED/projman/releases):
+
+```bash
+# Linux/macOS
+curl -L https://github.com/SalvatoreSpagnuolo-BipRED/projman/releases/latest/download/projman-linux-amd64.tar.gz -o projman.tar.gz
+tar -xzf projman.tar.gz
+chmod +x projman
+sudo mv projman /usr/local/bin/
+
+# Windows (PowerShell)
+# Scarica projman-windows-amd64.zip da GitHub Releases ed estrai in una directory nel PATH
+```
+
+### Da sorgente
+
+```bash
+git clone https://github.com/SalvatoreSpagnuolo-BipRED/projman.git
+cd projman
+make build
+# oppure
+go build -o projman
+```
+
+### Verifica installazione
+
+```bash
+projman --version
+projman help
+```
+
+## 🛠️ Sviluppo
+
+### Comandi Make disponibili
+
+```bash
+make build      # Compila il progetto
+make test       # Esegue i test
+make lint       # Formatta e analizza il codice
+make install    # Installa in GOPATH/bin
+make clean      # Rimuove file compilati
+make snapshot   # Crea release locale per test (richiede goreleaser)
+make release    # Crea e pusha un tag per release (es: make release VERSION=v1.2.3)
+```
+
+### Creare una release
+
+```bash
+# Crea e pusha il tag - GitHub Actions gestirà il resto
+make release VERSION=v1.2.3
+```
+
+Questo creerà automaticamente:
+
+- Tag Git v1.2.3
+- GitHub Release con changelog automatico
+- Build multi-piattaforma (Windows, macOS, Linux)
+- Aggiornamento versione nel codice e README
+- Binari nella cartella `builds/`
+
+## ⚙️ Configurazione
+
+La configurazione è salvata in formato multi-profilo:
+
+- **Windows**: `%APPDATA%/projman/projman_config.json`
+- **Linux/macOS**: `~/.config/projman/projman_config.json`
+
+Esempio:
+
+```json
+{
+  "current_profile": "sviluppo",
+  "profiles": {
+    "sviluppo": {
+      "root_of_projects": "/Users/username/progetti",
+      "selected_projects": ["project-a", "project-b"]
+    },
+    "produzione": {
+      "root_of_projects": "/Users/username/prod",
+      "selected_projects": ["project-x", "project-y"]
+    }
+  }
+}
+```
+
+## 📄 Licenza
+
+Questo progetto è distribuito sotto licenza MIT. Vedi il file [LICENSE](LICENSE) per maggiori dettagli.
+
+**Copyright © 2025 Salvatore Spagnuolo**
+
+## 👤 Autore
+
+**Salvatore Spagnuolo**
+
+- Organizzazione: BIP RED
+- Email: [salvatore.spagnuolo@vidiemme.it](mailto:salvatore.spagnuolo@vidiemme.it)
+- GitHub: [@SalvatoreSpagnuolo-BipRED](https://github.com/SalvatoreSpagnuolo-BipRED)
+
+---
+
+**Made with ❤️ by Salvatore Spagnuolo**
