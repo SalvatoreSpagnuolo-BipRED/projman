@@ -23,10 +23,10 @@ builds:
 
 archives:
   - name_template: "projman-{{ .Os }}-{{ .Arch }}"
-    format: tar.gz
+    format: ["tar.gz"]
     format_overrides:
       - goos: windows
-        format: zip
+        format: ["zip"]
     files:
       - LICENSE
       - README.md
