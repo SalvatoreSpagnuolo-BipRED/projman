@@ -11,7 +11,7 @@ import (
 
 const (
 	// Version rappresenta la versione corrente di Projman
-	Version = "1.0.2"
+	Version = "1.0.3"
 )
 
 // RootCmd rappresenta il comando base quando viene chiamato senza sottocomandi
