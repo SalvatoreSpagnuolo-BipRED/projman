@@ -19,6 +19,9 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: main
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Go
         uses: actions/setup-go@v5
@@ -31,6 +34,32 @@ jobs:
             echo "Error: Version must be in format vX.Y.Z (e.g., v1.0.0)"
             exit 1
           fi
+
+      - name: Update version in code
+        run: |
+          # Estrai versione senza 'v' (es: v1.0.0 -> 1.0.0)
+          VERSION="${{ github.event.inputs.version }}"
+          VERSION_NUM="${VERSION#v}"
+
+          # Aggiorna cmd/root.go
+          sed -i "s/Version = \".*\"/Version = \"$VERSION_NUM\"/" cmd/root.go
+
+          # Aggiorna badge in README.md
+          sed -i "s/Version-.*-brightgreen/Version-$VERSION_NUM-brightgreen/" README.md
+
+          # Mostra le modifiche
+          echo "=== cmd/root.go ==="
+          grep "Version = " cmd/root.go
+          echo "=== README.md ==="
+          grep "Version-" README.md
+
+      - name: Commit version updates
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add cmd/root.go README.md
+          git commit -m "chore: bump version to ${{ github.event.inputs.version }}" || echo "No changes to commit"
+          git push
 
       - name: Build for Windows (amd64)
         run: |
