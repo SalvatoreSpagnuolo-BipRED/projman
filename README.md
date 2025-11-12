@@ -10,8 +10,8 @@
 
 - 🔍 Scansione automatica di progetti Maven (ricerca di `pom.xml`)
 - 🎯 Interfaccia interattiva per selezionare i progetti da gestire
-- � Gestione multi-profilo per configurazioni diverse
-- �🔄 Comandi batch per Git con gestione intelligente dei branch (develop, deploy/\*, feature)
+- 👥 Gestione multi-profilo per configurazioni diverse
+- 🔄 Comandi batch per Git con gestione intelligente dei branch (develop, deploy/\*, feature)
 - 🏗️ Comandi batch per Maven con ordinamento automatico delle dipendenze
 - 💾 Configurazione persistente (JSON)
 - 🎨 Output formattato con colori e tabelle interattive
@@ -156,7 +156,7 @@ Questo progetto è distribuito sotto licenza MIT. Vedi il file [LICENSE](LICENSE
 **Salvatore Spagnuolo**
 
 - Organizzazione: BIP RED
-- Email: [salvatore.spagnuolo@bipred.com](mailto:salvatore.spagnuolo@bipred.com)
+- Email: [salvatore.spagnuolo@vidiemme.it](mailto:salvatore.spagnuolo@vidiemme.it)
 - GitHub: [@SalvatoreSpagnuolo-BipRED](https://github.com/SalvatoreSpagnuolo-BipRED)
 
 ---
