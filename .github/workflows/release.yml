@@ -1,0 +1,106 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version (e.g., v1.2.3)"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: main
+
+      - name: Reset README placeholder
+        run: |
+          # Ripristina il placeholder nel README prima di iniziare
+          sed -i 's/Version-[0-9]\+\.[0-9]\+\.[0-9]\+/Version-{{VERSION}}/g' README.md
+          echo "✓ README placeholder reset"
+
+      - name: Validate version format
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          if ! echo "$VERSION" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "❌ Invalid version format. Use: vX.Y.Z (e.g., v1.2.3)"
+            exit 1
+          fi
+          echo "✓ Version format valid: $VERSION"
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.25"
+          cache: false
+
+      - name: Build binaries for repo
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          VERSION_NUM="${VERSION#v}"
+
+          echo "📦 Building binaries for version $VERSION_NUM..."
+
+          # Build per tutte le piattaforme
+          mkdir -p builds/{Windows,macOS,Linux}
+
+          echo "  → Building Windows (amd64)..."
+          GOOS=windows GOARCH=amd64 go build -ldflags="-s -w -X github.com/SalvatoreSpagnuolo-BipRED/projman/cmd.Version=$VERSION_NUM" -trimpath -o builds/Windows/projman.exe .
+
+          echo "  → Building macOS (amd64)..."
+          GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w -X github.com/SalvatoreSpagnuolo-BipRED/projman/cmd.Version=$VERSION_NUM" -trimpath -o builds/macOS/projman-amd64 .
+
+          echo "  → Building macOS (arm64)..."
+          GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w -X github.com/SalvatoreSpagnuolo-BipRED/projman/cmd.Version=$VERSION_NUM" -trimpath -o builds/macOS/projman .
+
+          echo "  → Building Linux (amd64)..."
+          GOOS=linux GOARCH=amd64 go build -ldflags="-s -w -X github.com/SalvatoreSpagnuolo-BipRED/projman/cmd.Version=$VERSION_NUM" -trimpath -o builds/Linux/projman .
+
+          echo "✓ All binaries built successfully"
+
+      - name: Update README version
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          VERSION_NUM="${VERSION#v}"
+
+          sed -i "s/{{VERSION}}/$VERSION_NUM/g" README.md
+
+          # Verifica sostituzione
+          if grep -q "{{VERSION}}" README.md; then
+            echo "❌ Failed to replace {{VERSION}} placeholder"
+            exit 1
+          fi
+
+          echo "✓ README updated to version $VERSION_NUM"
+
+      - name: Commit and tag
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add README.md builds/
+
+          if ! git diff --staged --quiet; then
+            git commit -m "chore: release $VERSION"
+          fi
+
+          git tag -a "$VERSION" -m "Release $VERSION"
+          git push origin HEAD:main
+          git push origin "$VERSION"
+
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          version: "~> v2"
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
