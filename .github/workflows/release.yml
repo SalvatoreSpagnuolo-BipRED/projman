@@ -53,14 +53,6 @@ jobs:
           echo "=== README.md ==="
           grep "Version-" README.md
 
-      - name: Commit version updates
-        run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          git add cmd/root.go README.md
-          git commit -m "chore: bump version to ${{ github.event.inputs.version }}" || echo "No changes to commit"
-          git push
-
       - name: Build for Windows (amd64)
         run: |
           mkdir -p builds/Windows
@@ -93,10 +85,12 @@ jobs:
           tar -czf projman-linux-amd64.tar.gz projman
           mv projman-linux-amd64.tar.gz ../..
 
-      - name: Commit build binaries
+      - name: Commit version and binaries
         run: |
-          git add builds/
-          git commit -m "chore: update build binaries for ${{ github.event.inputs.version }}" || echo "No changes to commit"
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add cmd/root.go README.md builds/
+          git commit -m "chore: release ${{ github.event.inputs.version }}" || echo "No changes to commit"
           git push
 
       - name: Create Release
