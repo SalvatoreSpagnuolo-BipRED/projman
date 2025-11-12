@@ -63,6 +63,7 @@ jobs:
 
       - name: Build for Windows (amd64)
         run: |
+          mkdir -p builds/Windows
           GOOS=windows GOARCH=amd64 go build -o builds/Windows/projman.exe -ldflags="-s -w" .
           cd builds/Windows
           zip projman-windows-amd64.zip projman.exe
@@ -70,25 +71,33 @@ jobs:
 
       - name: Build for macOS (amd64)
         run: |
-          GOOS=darwin GOARCH=amd64 go build -o builds/macOS/projman -ldflags="-s -w" .
+          mkdir -p builds/macOS
+          GOOS=darwin GOARCH=amd64 go build -o builds/macOS/projman-amd64 -ldflags="-s -w" .
           cd builds/macOS
-          tar -czf projman-macos-amd64.tar.gz projman
+          tar -czf projman-macos-amd64.tar.gz projman-amd64
           mv projman-macos-amd64.tar.gz ../..
 
       - name: Build for macOS (arm64)
         run: |
-          GOOS=darwin GOARCH=arm64 go build -o builds/macOS/projman-arm64 -ldflags="-s -w" .
+          mkdir -p builds/macOS
+          GOOS=darwin GOARCH=arm64 go build -o builds/macOS/projman -ldflags="-s -w" .
           cd builds/macOS
-          tar -czf projman-macos-arm64.tar.gz projman-arm64
+          tar -czf projman-macos-arm64.tar.gz projman
           mv projman-macos-arm64.tar.gz ../..
 
       - name: Build for Linux (amd64)
         run: |
-          GOOS=linux GOARCH=amd64 go build -o builds/linux/projman -ldflags="-s -w" .
-          mkdir -p builds/linux
-          cd builds/linux
+          mkdir -p builds/Linux
+          GOOS=linux GOARCH=amd64 go build -o builds/Linux/projman -ldflags="-s -w" .
+          cd builds/Linux
           tar -czf projman-linux-amd64.tar.gz projman
           mv projman-linux-amd64.tar.gz ../..
+
+      - name: Commit build binaries
+        run: |
+          git add builds/
+          git commit -m "chore: update build binaries for ${{ github.event.inputs.version }}" || echo "No changes to commit"
+          git push
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
