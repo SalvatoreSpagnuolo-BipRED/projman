@@ -18,6 +18,13 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: main
+
+      - name: Reset README placeholder
+        run: |
+          # Ripristina il placeholder nel README prima di iniziare
+          sed -i 's/Version-[0-9]\+\.[0-9]\+\.[0-9]\+/Version-{{VERSION}}/g' README.md
+          echo "✓ README placeholder reset"
 
       - name: Validate version format
         run: |
@@ -31,7 +38,8 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.22"
+          go-version: "1.25"
+          cache: false
 
       - name: Build binaries for repo
         run: |
@@ -80,16 +88,14 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
           git add README.md builds/
-          git diff --staged --quiet || git commit -m "chore: release $VERSION"
 
-          # Crea tag annotato
+          if ! git diff --staged --quiet; then
+            git commit -m "chore: release $VERSION"
+          fi
+
           git tag -a "$VERSION" -m "Release $VERSION"
-
-          # Push commit e tag insieme
           git push origin HEAD:main
           git push origin "$VERSION"
-
-          echo "✓ Committed and tagged $VERSION"
 
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6
