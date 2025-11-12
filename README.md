@@ -25,8 +25,8 @@
 Crea un nuovo profilo di configurazione. Scansiona `<directory>` per trovare progetti Maven e permette di selezionarli interattivamente.
 
 ```bash
-projman init sviluppo ~/progetti
-projman init produzione ~/prod-projects
+projman init prodotto-alfa ~/micro-servizi-alfa
+projman init prodotto-beta ~/ms-beta
 ```
 
 #### `projman list`
@@ -42,7 +42,7 @@ projman list
 Imposta il profilo da utilizzare per tutti i comandi successivi.
 
 ```bash
-projman use produzione
+projman use prodotto-alfa
 ```
 
 #### `projman delete <nome-profilo>`
@@ -50,7 +50,7 @@ projman use produzione
 Elimina un profilo esistente (con richiesta di conferma).
 
 ```bash
-projman delete vecchio-profilo
+projman delete prodotto-beta
 ```
 
 ### Comandi Git
