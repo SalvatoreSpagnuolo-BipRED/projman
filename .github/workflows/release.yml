@@ -36,16 +36,26 @@ jobs:
       - name: Build binaries for repo
         run: |
           VERSION="${{ github.event.inputs.version }}"
+          VERSION_NUM="${VERSION#v}"
+
+          echo "📦 Building binaries for version $VERSION_NUM..."
 
           # Build per tutte le piattaforme
           mkdir -p builds/{Windows,macOS,Linux}
 
-          GOOS=windows GOARCH=amd64 go build -ldflags="-s -w -X github.com/SalvatoreSpagnuolo-BipRED/projman/cmd.Version=${VERSION#v}" -trimpath -o builds/Windows/projman.exe .
-          GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w -X github.com/SalvatoreSpagnuolo-BipRED/projman/cmd.Version=${VERSION#v}" -trimpath -o builds/macOS/projman-amd64 .
-          GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w -X github.com/SalvatoreSpagnuolo-BipRED/projman/cmd.Version=${VERSION#v}" -trimpath -o builds/macOS/projman .
-          GOOS=linux GOARCH=amd64 go build -ldflags="-s -w -X github.com/SalvatoreSpagnuolo-BipRED/projman/cmd.Version=${VERSION#v}" -trimpath -o builds/Linux/projman .
+          echo "  → Building Windows (amd64)..."
+          GOOS=windows GOARCH=amd64 go build -ldflags="-s -w -X github.com/SalvatoreSpagnuolo-BipRED/projman/cmd.Version=$VERSION_NUM" -trimpath -o builds/Windows/projman.exe .
 
-          echo "✓ Binaries built for all platforms"
+          echo "  → Building macOS (amd64)..."
+          GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w -X github.com/SalvatoreSpagnuolo-BipRED/projman/cmd.Version=$VERSION_NUM" -trimpath -o builds/macOS/projman-amd64 .
+
+          echo "  → Building macOS (arm64)..."
+          GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w -X github.com/SalvatoreSpagnuolo-BipRED/projman/cmd.Version=$VERSION_NUM" -trimpath -o builds/macOS/projman .
+
+          echo "  → Building Linux (amd64)..."
+          GOOS=linux GOARCH=amd64 go build -ldflags="-s -w -X github.com/SalvatoreSpagnuolo-BipRED/projman/cmd.Version=$VERSION_NUM" -trimpath -o builds/Linux/projman .
+
+          echo "✓ All binaries built successfully"
 
       - name: Update README version
         run: |

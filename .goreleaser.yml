@@ -23,7 +23,6 @@ builds:
 
 archives:
   - name_template: "projman-{{ .Os }}-{{ .Arch }}"
-    rlcp: true
     format_overrides:
       - goos: windows
         format: zip
