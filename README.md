@@ -2,7 +2,7 @@
 
 [![Go Version](https://img.shields.io/badge/Go-1.25.4-blue.svg)](https://golang.org)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/Version-1.0.4-brightgreen.svg)](https://github.com/SalvatoreSpagnuolo-BipRED/projman/releases)
+[![Version](https://img.shields.io/badge/Version-{{VERSION}}-brightgreen.svg)](https://github.com/SalvatoreSpagnuolo-BipRED/projman/releases)
 
 **Projman** è un tool CLI scritto in Go per gestire in batch multipli progetti Maven/Git.
 
@@ -96,12 +96,13 @@ Scarica il binary dalla sezione [Releases](https://github.com/SalvatoreSpagnuolo
 
 ```bash
 # Linux/macOS
-curl -L https://github.com/SalvatoreSpagnuolo-BipRED/projman/releases/latest/download/projman -o projman
+curl -L https://github.com/SalvatoreSpagnuolo-BipRED/projman/releases/latest/download/projman-linux-amd64.tar.gz -o projman.tar.gz
+tar -xzf projman.tar.gz
 chmod +x projman
 sudo mv projman /usr/local/bin/
 
 # Windows (PowerShell)
-# Scarica da GitHub Releases e aggiungi al PATH
+# Scarica projman-windows-amd64.zip da GitHub Releases ed estrai in una directory nel PATH
 ```
 
 ### Da sorgente
@@ -109,8 +110,9 @@ sudo mv projman /usr/local/bin/
 ```bash
 git clone https://github.com/SalvatoreSpagnuolo-BipRED/projman.git
 cd projman
+make build
+# oppure
 go build -o projman
-sudo mv projman /usr/local/bin/
 ```
 
 ### Verifica installazione
@@ -119,6 +121,35 @@ sudo mv projman /usr/local/bin/
 projman --version
 projman help
 ```
+
+## 🛠️ Sviluppo
+
+### Comandi Make disponibili
+
+```bash
+make build      # Compila il progetto
+make test       # Esegue i test
+make lint       # Formatta e analizza il codice
+make install    # Installa in GOPATH/bin
+make clean      # Rimuove file compilati
+make snapshot   # Crea release locale per test (richiede goreleaser)
+make release    # Crea e pusha un tag per release (es: make release VERSION=v1.2.3)
+```
+
+### Creare una release
+
+```bash
+# Crea e pusha il tag - GitHub Actions gestirà il resto
+make release VERSION=v1.2.3
+```
+
+Questo creerà automaticamente:
+
+- Tag Git v1.2.3
+- GitHub Release con changelog automatico
+- Build multi-piattaforma (Windows, macOS, Linux)
+- Aggiornamento versione nel codice e README
+- Binari nella cartella `builds/`
 
 ## ⚙️ Configurazione
 

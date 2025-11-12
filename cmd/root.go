@@ -9,10 +9,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const (
-	// Version rappresenta la versione corrente di Projman
-	Version = "1.0.4"
-)
+// Version viene impostata durante la build tramite ldflags
+var Version = "dev"
 
 // RootCmd rappresenta il comando base quando viene chiamato senza sottocomandi
 var RootCmd = &cobra.Command{

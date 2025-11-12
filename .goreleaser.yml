@@ -1,0 +1,64 @@
+# GoReleaser configuration
+version: 2
+
+builds:
+  - binary: projman
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - windows
+      - darwin
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
+    ldflags:
+      - -s -w
+      - -X github.com/SalvatoreSpagnuolo-BipRED/projman/cmd.Version={{.Version}}
+    flags:
+      - -trimpath
+
+archives:
+  - format: tar.gz
+    name_template: "projman-{{ .Os }}-{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - LICENSE
+      - README.md
+      - RELEASE.md
+
+checksum:
+  name_template: "checksums.txt"
+  algorithm: sha256
+
+changelog:
+  use: github
+  sort: asc
+  filters:
+    exclude:
+      - "^chore:"
+      - "^docs:"
+      - "^test:"
+      - "^ci:"
+  groups:
+    - title: Features
+      regexp: "^feat"
+      order: 0
+    - title: Bug Fixes
+      regexp: "^fix"
+      order: 1
+    - title: Others
+      order: 999
+
+release:
+  github:
+    owner: SalvatoreSpagnuolo-BipRED
+    name: projman
+  prerelease: auto
+  make_latest: true
+  name_template: "{{.Tag}}"

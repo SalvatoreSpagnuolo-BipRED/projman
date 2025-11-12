@@ -187,11 +187,46 @@ pterm.DefaultHeader.Println()  // Intestazioni
 
 1. **Branch** feature da `develop`
 2. **Modifica** codice
-3. **Test** manuale: `go build && ./projman <comando>`
-4. **Format**: `go fmt ./...`
-5. **Lint**: `go vet ./...`
-6. **Commit** con messaggio chiaro
-7. **Update docs** se necessario (README.md, AGENTS.md)
+3. **Test** manuale: `make build && ./projman <comando>`
+4. **Format**: `make lint` (esegue `go fmt` e `go vet`)
+5. **Commit** con messaggio chiaro (usa Conventional Commits: feat:, fix:, docs:, etc.)
+6. **Update docs** se necessario (README.md, AGENTS.md)
+7. **Release**: `make release VERSION=v1.2.3` (crea tag e triggera GitHub Actions)
+
+### Processo di Release
+
+Projman usa [GoReleaser](https://goreleaser.com/) per gestire le release:
+
+1. **Locale**: `make release VERSION=v1.2.3`
+
+   - Crea e pusha tag Git
+   - Triggera GitHub Actions
+
+2. **GitHub Actions** (automatico):
+
+   - Aggiorna versione in `cmd/root.go` e README badge
+   - Compila con GoReleaser (Windows, macOS Intel/ARM, Linux)
+   - Genera changelog automatico dai commit
+   - Crea GitHub Release con archivi
+   - Copia binari in `builds/` directory
+   - Commit delle modifiche su `main`
+
+3. **Test locale** (senza pubblicare):
+   ```bash
+   make snapshot  # Crea build in dist/ senza pubblicare
+   ```
+
+### Comandi Make Utili
+
+```bash
+make build      # Compila projman
+make test       # Esegue test
+make lint       # Formatta e analizza codice
+make install    # Installa in GOPATH/bin
+make clean      # Rimuove artifacts
+make snapshot   # Test release locale (richiede goreleaser)
+make ci         # Esegue tutti i check CI
+```
 
 ## 🐛 Troubleshooting
 
@@ -207,8 +242,9 @@ pterm.DefaultHeader.Println()  // Intestazioni
 
 - [Cobra Docs](https://github.com/spf13/cobra/blob/main/user_guide.md)
 - [Pterm Examples](https://github.com/pterm/pterm/tree/master/_examples)
+- [GoReleaser Docs](https://goreleaser.com/intro/)
 - [Effective Go](https://golang.org/doc/effective_go)
 
 ---
 
-**v1.1.0** | Novembre 2025 | Salvatore Spagnuolo
+**v1.2.0** | Novembre 2025 | Salvatore Spagnuolo

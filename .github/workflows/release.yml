@@ -4,121 +4,71 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Version number (e.g., v1.0.0)"
+        description: "Version (e.g., v1.2.3)"
         required: true
-        type: string
 
 permissions:
   contents: write
 
 jobs:
-  build:
-    name: Build and Release
+  release:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: main
-          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
 
-      - name: Set up Go
+      - name: Validate version format
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          if ! echo "$VERSION" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "❌ Invalid version format. Use: vX.Y.Z (e.g., v1.2.3)"
+            exit 1
+          fi
+          echo "✓ Version format valid: $VERSION"
+
+      - name: Setup Go
         uses: actions/setup-go@v5
         with:
           go-version: "1.22"
 
-      - name: Verify version format
+      - name: Update README version
         run: |
-          if [[ ! "${{ github.event.inputs.version }}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "Error: Version must be in format vX.Y.Z (e.g., v1.0.0)"
-            exit 1
-          fi
-
-      - name: Update version in code
-        run: |
-          # Estrai versione senza 'v' (es: v1.0.0 -> 1.0.0)
           VERSION="${{ github.event.inputs.version }}"
           VERSION_NUM="${VERSION#v}"
+          sed -i "s/{{VERSION}}/$VERSION_NUM/g" README.md
 
-          # Aggiorna cmd/root.go
-          sed -i "s/Version = \".*\"/Version = \"$VERSION_NUM\"/" cmd/root.go
+          # Verifica che la sostituzione sia avvenuta
+          if grep -q "{{VERSION}}" README.md; then
+            echo "❌ Failed to replace {{VERSION}} placeholder"
+            exit 1
+          fi
+          echo "✓ README updated to version $VERSION_NUM"
 
-          # Aggiorna badge in README.md
-          sed -i "s/Version-.*-brightgreen/Version-$VERSION_NUM-brightgreen/" README.md
-
-          # Mostra le modifiche
-          echo "=== cmd/root.go ==="
-          grep "Version = " cmd/root.go
-          echo "=== README.md ==="
-          grep "Version-" README.md
-
-      - name: Build for Windows (amd64)
+      - name: Commit and tag
         run: |
-          mkdir -p builds/Windows
-          GOOS=windows GOARCH=amd64 go build -o builds/Windows/projman.exe -ldflags="-s -w" .
-          cd builds/Windows
-          zip projman-windows-amd64.zip projman.exe
-          mv projman-windows-amd64.zip ../..
+          VERSION="${{ github.event.inputs.version }}"
 
-      - name: Build for macOS (amd64)
-        run: |
-          mkdir -p builds/macOS
-          GOOS=darwin GOARCH=amd64 go build -o builds/macOS/projman-amd64 -ldflags="-s -w" .
-          cd builds/macOS
-          tar -czf projman-macos-amd64.tar.gz projman-amd64
-          mv projman-macos-amd64.tar.gz ../..
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
 
-      - name: Build for macOS (arm64)
-        run: |
-          mkdir -p builds/macOS
-          GOOS=darwin GOARCH=arm64 go build -o builds/macOS/projman -ldflags="-s -w" .
-          cd builds/macOS
-          tar -czf projman-macos-arm64.tar.gz projman
-          mv projman-macos-arm64.tar.gz ../..
+          git add README.md
+          git diff --staged --quiet || git commit -m "chore: bump version to $VERSION"
 
-      - name: Build for Linux (amd64)
-        run: |
-          mkdir -p builds/Linux
-          GOOS=linux GOARCH=amd64 go build -o builds/Linux/projman -ldflags="-s -w" .
-          cd builds/Linux
-          tar -czf projman-linux-amd64.tar.gz projman
-          mv projman-linux-amd64.tar.gz ../..
+          # Crea tag annotato
+          git tag -a "$VERSION" -m "Release $VERSION"
 
-      - name: Commit version and binaries
-        run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-          git add cmd/root.go README.md builds/
-          git commit -m "chore: release ${{ github.event.inputs.version }}" || echo "No changes to commit"
-          git push
+          # Push commit e tag insieme
+          git push origin HEAD:main
+          git push origin "$VERSION"
 
-      - name: Create Release
-        uses: softprops/action-gh-release@v1
+          echo "✓ Committed and tagged $VERSION"
+
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v6
         with:
-          tag_name: ${{ github.event.inputs.version }}
-          name: Release ${{ github.event.inputs.version }}
-          draft: false
-          prerelease: false
-          files: |
-            projman-windows-amd64.zip
-            projman-macos-amd64.tar.gz
-            projman-macos-arm64.tar.gz
-            projman-linux-amd64.tar.gz
-          body: |
-            ## Projman ${{ github.event.inputs.version }}
-
-            ### Download
-
-            - **Windows (amd64)**: `projman-windows-amd64.zip`
-            - **macOS (Intel)**: `projman-macos-amd64.tar.gz`
-            - **macOS (Apple Silicon)**: `projman-macos-arm64.tar.gz`
-            - **Linux (amd64)**: `projman-linux-amd64.tar.gz`
-
-            ### Installation
-
-            1. Download the appropriate binary for your platform
-            2. Extract the archive
-            3. Add the binary to your PATH
-
-            For more information, see the [README](https://github.com/${{ github.repository }}/blob/main/README.md).
+          version: latest
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
