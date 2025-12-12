@@ -6,9 +6,9 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/SalvatoreSpagnuolo-BipRED/projman/internal/cmdutil"
 	"github.com/SalvatoreSpagnuolo-BipRED/projman/internal/config"
 	"github.com/SalvatoreSpagnuolo-BipRED/projman/internal/exec"
-	"github.com/SalvatoreSpagnuolo-BipRED/projman/internal/ui"
 	"github.com/pterm/pterm"
 	"github.com/spf13/cobra"
 )
@@ -39,22 +39,9 @@ Il comportamento varia in base al branch corrente:
 Prima delle operazioni, eventuali modifiche non committate vengono salvate in stash
 e automaticamente ripristinate al termine.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		// Carica e valida la configurazione
-		cfg, err := config.LoadAndValidateConfig()
+		// Carica configurazione e seleziona progetti
+		cfg, _, err := cmdutil.LoadConfigAndSelectProjects()
 		if err != nil {
-			return
-		}
-
-		// Permette all'utente di selezionare i progetti da aggiornare
-		selectedProjects, err := config.SelectProjectsToUpdate(cfg)
-		if err != nil {
-			return
-		}
-
-		// Salva la selezione aggiornata
-		cfg.SelectedProjects = selectedProjects
-		if err := config.SaveSettings(*cfg); err != nil {
-			pterm.Error.Println("Errore nel salvataggio della configurazione:", err)
 			return
 		}
 
@@ -139,26 +126,50 @@ func filterNonDevelopProjects(projectInfos []ProjectInfo) []ProjectInfo {
 
 // showBranchSwitchingTable mostra una tabella interattiva per selezionare i progetti da passare a develop
 func showBranchSwitchingTable(nonDevelopProjects []ProjectInfo) ([]int, error) {
-	// Prepara i dati per la tabella
-	rows := make([][]string, 0, len(nonDevelopProjects))
-	defaultIndices := make([]int, 0)
+	// Prepara le opzioni formattate per pterm
+	options := make([]string, len(nonDevelopProjects))
+	defaultOptions := make([]string, 0)
 
-	for i, pInfo := range nonDevelopProjects {
-		rows = append(rows, []string{pInfo.Name, pInfo.CurrentBranch})
-		if pInfo.switchToDevelop {
-			defaultIndices = append(defaultIndices, i)
+	// Trova la larghezza massima del nome progetto per allineamento
+	maxNameLen := 0
+	for _, pInfo := range nonDevelopProjects {
+		if len(pInfo.Name) > maxNameLen {
+			maxNameLen = len(pInfo.Name)
 		}
 	}
 
-	// Mostra la tabella multiselect
-	multiSelectTable := ui.MultiSelectTable{
-		Headers:        []string{"Progetto", "Branch Attuale"},
-		Rows:           rows,
-		Message:        "Seleziona i progetti da passare a 'develop':",
-		DefaultIndices: defaultIndices,
+	// Formatta ogni opzione come "Progetto │ Branch Attuale"
+	for i, pInfo := range nonDevelopProjects {
+		options[i] = fmt.Sprintf("%-*s │ %s", maxNameLen, pInfo.Name, pInfo.CurrentBranch)
+		if pInfo.switchToDevelop {
+			defaultOptions = append(defaultOptions, options[i])
+		}
 	}
 
-	return multiSelectTable.Show()
+	// Mostra header e selezione interattiva con pterm nativo
+	pterm.Info.Println("Seleziona i progetti da passare a 'develop':")
+	pterm.Println()
+
+	selectedOptions, err := pterm.DefaultInteractiveMultiselect.
+		WithOptions(options).
+		WithDefaultOptions(defaultOptions).
+		Show()
+	if err != nil {
+		return nil, fmt.Errorf("errore durante la selezione interattiva: %w", err)
+	}
+
+	// Converti le opzioni selezionate negli indici corrispondenti
+	selectedIndices := make([]int, 0, len(selectedOptions))
+	for _, selected := range selectedOptions {
+		for i, option := range options {
+			if option == selected {
+				selectedIndices = append(selectedIndices, i)
+				break
+			}
+		}
+	}
+
+	return selectedIndices, nil
 }
 
 // updateBranchSwitchingChoices aggiorna le scelte di cambio branch in base alla selezione utente
@@ -189,8 +200,8 @@ func updateBranchSwitchingChoices(projectInfos []ProjectInfo, nonDevelopProjects
 
 // processProjects elabora tutti i progetti eseguendo le operazioni git
 func processProjects(projectInfos []ProjectInfo) {
-	for _, pInfo := range projectInfos {
-		pterm.DefaultSection.Printf("Elaborazione progetto: %s", pInfo.Name)
+	for i, pInfo := range projectInfos {
+		pterm.DefaultHeader.WithFullWidth().Printf("Progetto %d/%d: %s", i+1, len(projectInfos), pInfo.Name)
 
 		if err := processProject(&pInfo); err != nil {
 			pterm.Error.Printf("Errore durante l'elaborazione di '%s': %v\n", pInfo.Name, err)
@@ -380,5 +391,5 @@ func branchInformation(projectPath string) (isDevelop, isDeploy bool, currentBra
 }
 
 func init() {
-	gitCmd.AddCommand(updateCmd)
+	GitCmd.AddCommand(updateCmd)
 }

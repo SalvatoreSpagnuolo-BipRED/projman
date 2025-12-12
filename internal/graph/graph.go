@@ -27,21 +27,23 @@ func (g DependencyGraph) AddDependency(name string, dependency string) {
 
 // TopologicalSort ordina i nodi del grafo in base alle loro dipendenze
 // Restituisce l'ordine di esecuzione corretto o un errore se ci sono cicli
-// Usa l'algoritmo di Kahn per il topological sort
+// Usa l'algoritmo di Kahn ottimizzato con reverse graph (O(n+m) invece di O(n²))
 func (g DependencyGraph) TopologicalSort() ([]string, error) {
-	// Calcola l'in-degree (numero di dipendenze) per ogni nodo
+	// Inizializza in-degree e reverse graph
 	inDegree := make(map[string]int)
+	reverseGraph := make(map[string][]string) // chi dipende da me
 
 	// Inizializza tutti i nodi con in-degree 0
 	for node := range g {
-		if _, exists := inDegree[node]; !exists {
-			inDegree[node] = 0
-		}
+		inDegree[node] = 0
 	}
 
-	// Calcola l'in-degree: per ogni progetto, incrementa l'in-degree in base al numero di dipendenze
+	// Calcola in-degree e costruisci reverse graph in una sola passata
 	for node, deps := range g {
 		inDegree[node] += len(deps)
+		for _, dep := range deps {
+			reverseGraph[dep] = append(reverseGraph[dep], node)
+		}
 	}
 
 	// Coda dei nodi senza dipendenze (in-degree = 0)
@@ -55,22 +57,18 @@ func (g DependencyGraph) TopologicalSort() ([]string, error) {
 	// Risultato dell'ordinamento topologico
 	result := make([]string, 0, len(g))
 
-	// Algoritmo di Kahn
+	// Algoritmo di Kahn ottimizzato
 	for len(queue) > 0 {
 		// Prendi il primo nodo dalla coda
 		current := queue[0]
 		queue = queue[1:]
 		result = append(result, current)
 
-		// Per ogni progetto che dipende dal nodo corrente, decrementa il suo in-degree
-		for node, deps := range g {
-			for _, dep := range deps {
-				if dep == current {
-					inDegree[node]--
-					if inDegree[node] == 0 {
-						queue = append(queue, node)
-					}
-				}
+		// O(1) lookup: trova tutti i nodi che dipendono dal nodo corrente
+		for _, dependent := range reverseGraph[current] {
+			inDegree[dependent]--
+			if inDegree[dependent] == 0 {
+				queue = append(queue, dependent)
 			}
 		}
 	}

@@ -125,12 +125,6 @@ func RunWithSpinner(name string, args []string, _ int) error {
 	return nil
 }
 
-// RunWithScrollableOutput è un alias per RunWithSpinner per retro-compatibilità.
-// Il parametro maxLines specifica quante righe di log mostrare (usa 0 per nessun log).
-func RunWithScrollableOutput(name string, args []string, maxLines int) error {
-	return RunWithSpinner(name, args, maxLines)
-}
-
 // WaitForUserInput blocca l'esecuzione e chiede all'utente se continuare o terminare.
 // Restituisce true se l'utente vuole continuare, false se vuole terminare l'esecuzione.
 func WaitForUserInput(context string) bool {

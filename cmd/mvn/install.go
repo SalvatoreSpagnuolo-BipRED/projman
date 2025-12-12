@@ -3,7 +3,7 @@ package mvn
 import (
 	"path/filepath"
 
-	"github.com/SalvatoreSpagnuolo-BipRED/projman/internal/config"
+	"github.com/SalvatoreSpagnuolo-BipRED/projman/internal/cmdutil"
 	"github.com/SalvatoreSpagnuolo-BipRED/projman/internal/exec"
 	"github.com/SalvatoreSpagnuolo-BipRED/projman/internal/maven"
 	"github.com/SalvatoreSpagnuolo-BipRED/projman/internal/maven/executor"
@@ -25,23 +25,9 @@ Esempi:
   projman mvn install         - Installa i progetti senza eseguire i test
   projman mvn install --tests - Installa i progetti eseguendo i test`,
 	Run: func(cmd *cobra.Command, args []string) {
-
-		// Carica e valida la configurazione
-		cfg, err := config.LoadAndValidateConfig()
+		// Carica configurazione e seleziona progetti
+		cfg, _, err := cmdutil.LoadConfigAndSelectProjects()
 		if err != nil {
-			return
-		}
-
-		// Permette all'utente di selezionare i progetti da aggiornare
-		selectedProjects, err := config.SelectProjectsToUpdate(cfg)
-		if err != nil {
-			return
-		}
-
-		// Salva la selezione aggiornata
-		cfg.SelectedProjects = selectedProjects
-		if err := config.SaveSettings(*cfg); err != nil {
-			pterm.Error.Println("Errore nel salvataggio della configurazione:", err)
 			return
 		}
 
@@ -102,8 +88,7 @@ Esempi:
 			// Esegui il comando Maven con il nuovo executor
 			mavenExec := executor.NewMavenExecutor(projectName, args)
 			if err := mavenExec.Run(); err != nil {
-				pterm.Error.Printf("✗ Progetto %s: errore durante l'installazione\n", projectName)
-				pterm.Error.Println("  ", err.Error())
+				mavenExec.CurrentSpinner.Fail("  ", err.Error())
 				failureCount++
 
 				// Chiedi all'utente se vuole continuare
@@ -162,6 +147,6 @@ func printInstallSummary(successCount, failureCount, skippedCount int) {
 }
 
 func init() {
-	mvnCmd.AddCommand(installCmd)
+	MvnCmd.AddCommand(installCmd)
 	installCmd.Flags().BoolVarP(&runTests, "tests", "t", false, "Abilita l'esecuzione dei test durante l'installazione")
 }

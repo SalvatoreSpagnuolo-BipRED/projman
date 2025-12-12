@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 
 	"github.com/SalvatoreSpagnuolo-BipRED/projman/internal/buildsystem"
+	"github.com/SalvatoreSpagnuolo-BipRED/projman/internal/graph"
 )
 
 // pom rappresenta la struttura XML di un file pom.xml (semplificata)
@@ -38,16 +39,8 @@ type pomModules struct {
 	Module []string `xml:"module"`
 }
 
-// Parser implementa l'interfaccia buildsystem.Parser per progetti Maven
-type Parser struct{}
-
-// NewParser crea un nuovo parser Maven
-func NewParser() *Parser {
-	return &Parser{}
-}
-
 // ParseProject analizza un progetto Maven e restituisce le sue informazioni
-func (p *Parser) ParseProject(projectName, rootPath string) (*buildsystem.Project, error) {
+func ParseProject(projectName, rootPath string) (*buildsystem.Project, error) {
 	pomPath := filepath.Join(rootPath, projectName, "pom.xml")
 
 	pomData, err := parsePomFile(pomPath)
@@ -77,16 +70,6 @@ func (p *Parser) ParseProject(projectName, rootPath string) (*buildsystem.Projec
 	}
 
 	return project, nil
-}
-
-// GetIdentifier restituisce l'identificatore univoco del progetto (groupId:artifactId)
-func (p *Parser) GetIdentifier(project *buildsystem.Project) string {
-	return project.Identifier
-}
-
-// SupportsModules indica che Maven supporta i moduli
-func (p *Parser) SupportsModules() bool {
-	return true
 }
 
 // parsePomFile legge e analizza un file pom.xml
@@ -182,4 +165,56 @@ func RegisterSubModules(projectPath string, parentProjectName string, registry *
 	}
 
 	return nil
+}
+
+// BuildDependencyGraph costruisce il grafo delle dipendenze tra i progetti Maven selezionati
+// Questa funzione sostituisce l'implementazione in compat.go eliminando il doppio parsing
+func BuildDependencyGraph(projectNames []string, rootPath string) (map[string][]string, error) {
+	registry := buildsystem.NewArtifactRegistry()
+	projects := make(map[string]*buildsystem.Project)
+
+	// Parse tutti i progetti in una sola passata
+	for _, name := range projectNames {
+		project, err := ParseProject(name, rootPath)
+		if err != nil {
+			return nil, err
+		}
+		projects[name] = project
+
+		// Registra il progetto principale
+		registry.Register(project.Identifier, name)
+
+		// Registra i sub-modules per gestire dipendenze indirette
+		if err := RegisterSubModules(project.Path, name, registry); err != nil {
+			// Ignora errori di registrazione sub-modules (già gestito con Warning in compat.go)
+			// Questo è accettabile perché alcuni sub-modules potrebbero non essere accessibili
+		}
+	}
+
+	// Costruisci il grafo delle dipendenze tra i progetti selezionati
+	dependencyGraph := make(map[string][]string)
+	for name, project := range projects {
+		dependencies := make([]string, 0)
+
+		for _, depId := range project.Dependencies {
+			// Controlla se la dipendenza è uno dei progetti selezionati
+			if depProjectName, exists := registry.Lookup(depId); exists {
+				// Evita self-dependency
+				if depProjectName != name {
+					dependencies = append(dependencies, depProjectName)
+				}
+			}
+		}
+
+		dependencyGraph[name] = dependencies
+	}
+
+	return dependencyGraph, nil
+}
+
+// TopologicalSort ordina i progetti in base alle loro dipendenze
+// Restituisce l'ordine di esecuzione corretto o un errore se ci sono cicli
+func TopologicalSort(graphMap map[string][]string) ([]string, error) {
+	dependencyGraph := graph.DependencyGraph(graphMap)
+	return dependencyGraph.TopologicalSort()
 }

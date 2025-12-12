@@ -35,8 +35,8 @@ func Execute() {
 
 func init() {
 	// Registra i comandi dei subpackage
-	RootCmd.AddCommand(git.GetGitCmd())
-	RootCmd.AddCommand(mvn.GetMvnCmd())
+	RootCmd.AddCommand(git.GitCmd)
+	RootCmd.AddCommand(mvn.MvnCmd)
 
 	// Personalizza il template della versione
 	RootCmd.SetVersionTemplate(fmt.Sprintf("Projman v%s\n", Version))

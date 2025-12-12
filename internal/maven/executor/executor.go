@@ -45,7 +45,7 @@ type MavenPhase struct {
 type MavenExecutor struct {
 	projectName    string
 	args           []string
-	currentSpinner *pterm.SpinnerPrinter
+	CurrentSpinner *pterm.SpinnerPrinter
 	currentPhase   *MavenPhase
 }
 
@@ -86,7 +86,7 @@ func (mavenExec *MavenExecutor) Run() error {
 	}
 
 	// Info spinner iniziale
-	mavenExec.currentSpinner, _ = pterm.DefaultSpinner.Start("Starting Maven build...")
+	mavenExec.CurrentSpinner, _ = pterm.DefaultSpinner.Start("Starting Maven build...")
 
 	// Leggi output in goroutine
 	done := make(chan bool, 2)
@@ -139,9 +139,9 @@ func (mavenExec *MavenExecutor) processOutputLine(line string) {
 
 	// 4. Rileva fine build (implicitamente completa ultima fase)
 	if buildResultPattern.MatchString(line) {
-		if mavenExec.currentSpinner != nil {
-			mavenExec.currentSpinner.Success("Build completed")
-			mavenExec.currentSpinner = nil
+		if mavenExec.CurrentSpinner != nil {
+			mavenExec.CurrentSpinner.Success("Build completed")
+			mavenExec.CurrentSpinner = nil
 		}
 		return
 	}
@@ -161,18 +161,18 @@ func (mavenExec *MavenExecutor) handlePhaseStart(plugin, version, goal, module s
 	}
 
 	// Completa fase precedente con Success
-	if mavenExec.currentSpinner != nil {
-		mavenExec.currentSpinner.Success()
+	if mavenExec.CurrentSpinner != nil {
+		mavenExec.CurrentSpinner.Success()
 	}
 
 	// Avvia nuovo spinner per questa fase
 	mavenExec.currentPhase = phase
-	mavenExec.currentSpinner, _ = pterm.DefaultSpinner.Start(phase.Description)
+	mavenExec.CurrentSpinner, _ = pterm.DefaultSpinner.Start(phase.Description)
 }
 
 // handleTestStart aggiorna lo spinner con la classe di test in esecuzione
 func (mavenExec *MavenExecutor) handleTestStart(testClass string) {
-	if mavenExec.currentSpinner == nil {
+	if mavenExec.CurrentSpinner == nil {
 		return
 	}
 
@@ -182,12 +182,12 @@ func (mavenExec *MavenExecutor) handleTestStart(testClass string) {
 		shortName = testClass[idx+1:]
 	}
 
-	mavenExec.currentSpinner.UpdateText(fmt.Sprintf("%s - %s", mavenExec.currentPhase.Description, shortName))
+	mavenExec.CurrentSpinner.UpdateText(fmt.Sprintf("%s - %s", mavenExec.currentPhase.Description, shortName))
 }
 
 // handleTestResults aggiorna lo spinner con i risultati dei test
 func (mavenExec *MavenExecutor) handleTestResults(runStr, failStr, errStr, skipStr string) {
-	if mavenExec.currentSpinner == nil {
+	if mavenExec.CurrentSpinner == nil {
 		return
 	}
 
@@ -206,7 +206,7 @@ func (mavenExec *MavenExecutor) handleTestResults(runStr, failStr, errStr, skipS
 		message = fmt.Sprintf("%s - %d passed", mavenExec.currentPhase.Description, passed)
 	}
 
-	mavenExec.currentSpinner.UpdateText(message)
+	mavenExec.CurrentSpinner.UpdateText(message)
 }
 
 // identifyPhase identifica la fase Maven dal plugin e goal
