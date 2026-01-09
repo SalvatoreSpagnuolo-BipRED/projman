@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"strings"
+
 	"github.com/SalvatoreSpagnuolo-BipRED/projman/internal/config"
 	"github.com/SalvatoreSpagnuolo-BipRED/projman/internal/project"
 	"github.com/pterm/pterm"
@@ -63,10 +65,22 @@ Permette di selezionare interattivamente quali progetti includere nella gestione
 			return nil
 		}
 
+		// Prompt opzionale per il profilo Maven
+		mavenProfile, err := pterm.DefaultInteractiveTextInput.
+			WithDefaultText("").
+			Show("Inserisci il nome del profilo Maven (lascia vuoto per saltare):")
+		if err != nil {
+			pterm.Error.Println("Errore durante l'input del profilo Maven:", err)
+			return err
+		}
+		// Trim degli spazi bianchi
+		mavenProfile = strings.TrimSpace(mavenProfile)
+
 		// Salva la configurazione nel profilo specificato
 		cfg := config.Config{
 			SelectedProjects: selectedNames,
 			RootOfProjects:   root,
+			MavenProfile:     mavenProfile,
 		}
 
 		if err := config.SaveProfile(profileName, cfg); err != nil {
@@ -74,7 +88,12 @@ Permette di selezionare interattivamente quali progetti includere nella gestione
 			return err
 		}
 
-		pterm.Success.Printf("Profilo '%s' configurato con %d progetti selezionati\n", profileName, len(selectedNames))
+		// Messaggio di successo adattato in base alla presenza del profilo Maven
+		if mavenProfile != "" {
+			pterm.Success.Printf("Profilo '%s' configurato con %d progetti e profilo Maven '%s'\n", profileName, len(selectedNames), mavenProfile)
+		} else {
+			pterm.Success.Printf("Profilo '%s' configurato con %d progetti selezionati\n", profileName, len(selectedNames))
+		}
 		return nil
 	},
 }

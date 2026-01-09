@@ -12,6 +12,7 @@ import (
 )
 
 var runTests bool
+var mavenProfile string
 
 // installCmd rappresenta il comando per eseguire mvn install sui progetti selezionati
 var installCmd = &cobra.Command{
@@ -31,11 +32,22 @@ Esempi:
 			return
 		}
 
+		// Determina quale profilo Maven usare (priorità: flag runtime > config > nessuno)
+		profileToUse := mavenProfile // Da flag --profile
+		if profileToUse == "" && cfg.MavenProfile != "" {
+			profileToUse = cfg.MavenProfile // Da configurazione
+		}
+
 		// Mostra informazioni sull'esecuzione
 		if runTests {
 			pterm.Info.Println("Esecuzione con test abilitati")
 		} else {
 			pterm.Info.Println("Esecuzione con test disabilitati (-DskipTests=true)")
+		}
+
+		// Mostra informazioni sul profilo Maven se presente
+		if profileToUse != "" {
+			pterm.Info.Printf("Profilo Maven: %s\n", profileToUse)
 		}
 
 		// Costruisci il grafo delle dipendenze
@@ -83,7 +95,7 @@ Esempi:
 			pomPath := filepath.Join(cfg.RootOfProjects, projectName, "pom.xml")
 
 			// Prepara gli argomenti per Maven
-			args := buildMavenArgs(pomPath, runTests)
+			args := buildMavenArgs(pomPath, runTests, profileToUse)
 
 			// Esegui il comando Maven con il nuovo executor
 			mavenExec := executor.NewMavenExecutor(projectName, args)
@@ -113,8 +125,14 @@ Esempi:
 }
 
 // buildMavenArgs costruisce gli argomenti per il comando Maven
-func buildMavenArgs(pomPath string, includeTests bool) []string {
+func buildMavenArgs(pomPath string, includeTests bool, profileToUse string) []string {
 	args := []string{"-B", "-f", pomPath, "clean", "install"}
+
+	// Aggiunge il profilo Maven se specificato
+	if profileToUse != "" {
+		args = append(args, "-P", profileToUse)
+	}
+
 	if !includeTests {
 		args = append(args, "-DskipTests=true")
 	}
@@ -149,4 +167,5 @@ func printInstallSummary(successCount, failureCount, skippedCount int) {
 func init() {
 	MvnCmd.AddCommand(installCmd)
 	installCmd.Flags().BoolVarP(&runTests, "tests", "t", false, "Abilita l'esecuzione dei test durante l'installazione")
+	installCmd.Flags().StringVarP(&mavenProfile, "profile", "P", "", "Profilo Maven da usare (sovrascrive quello configurato)")
 }

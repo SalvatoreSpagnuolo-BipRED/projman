@@ -24,8 +24,9 @@ const (
 
 // Config rappresenta la struttura della configurazione di projman
 type Config struct {
-	RootOfProjects   string   `json:"root_of_projects"`  // Percorso root contenente tutti i progetti
-	SelectedProjects []string `json:"selected_projects"` // Lista dei progetti selezionati dall'utente
+	RootOfProjects   string   `json:"root_of_projects"`        // Percorso root contenente tutti i progetti
+	SelectedProjects []string `json:"selected_projects"`       // Lista dei progetti selezionati dall'utente
+	MavenProfile     string   `json:"maven_profile,omitempty"` // Profilo Maven opzionale (es: "local-dev", "production")
 }
 
 // ProfileConfig rappresenta la struttura che contiene tutti i profili e il profilo corrente
